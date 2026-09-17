@@ -26,7 +26,16 @@ export interface Campaign {
   reachRatio: number | null;
   engRatio: number | null;
   report: string | null;
+  /** True when data/corrections.json supplied this campaign's figures. */
+  corrected: boolean;
   search: string;
+}
+
+export interface Correction {
+  label: string;
+  note: string;
+  was: { reach?: string; eng?: string };
+  now: { reach?: number; eng?: number };
 }
 
 export interface FacetValue { value: string; count: number }
@@ -70,6 +79,7 @@ export interface Meta {
     total: number; noReport: number; noFigures: number; badDate: number;
     unclassified: number; engOverReach: string[]; duplicatedFigures: string[];
     extremeReach: { label: string; reach: number; raw: string }[];
+    corrected: Correction[];
     unknownServices: string[];
   };
 }

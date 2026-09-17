@@ -10,7 +10,11 @@
  * Figures are read exactly as the sheet writes them. "235747 Thousand" is
  * 235,747,000 because that is what the sheet says and WLDD has confirmed those
  * are real numbers. Outliers are listed in the health report for review at
- * source, but nothing here rewrites a figure.
+ * source; nothing here infers a correction.
+ *
+ * The one exception is data/corrections.json — figures WLDD has explicitly
+ * confirmed and asked to override. Those are applied by hand, never by rule,
+ * and every one is listed in the health report with the string it replaced.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -140,6 +144,19 @@ if (!fs.existsSync(csvPath)) {
   process.exit(1);
 }
 
+/** client + campaign, normalised, so a stray double space cannot miss a match. */
+const keyOf = (client, campaign) =>
+  `${tidy(client).toLowerCase()}\u0000${tidy(campaign).toLowerCase()}`;
+
+const correctionsPath = path.join(ROOT, 'data', 'corrections.json');
+const corrections = new Map();
+if (fs.existsSync(correctionsPath)) {
+  const parsedCorrections = JSON.parse(fs.readFileSync(correctionsPath, 'utf8'));
+  for (const c of parsedCorrections.corrections ?? []) {
+    corrections.set(keyOf(c.client, c.campaign), { ...c, applied: false });
+  }
+}
+
 const text = fs.readFileSync(csvPath, 'utf8');
 // The sheet carries two spacer rows above the real header.
 const lines = text.split(/\r?\n/);
@@ -151,7 +168,7 @@ const parsed = Papa.parse(body, { header: true, skipEmptyLines: 'greedy' });
 const health = {
   skipped: 0, noReport: 0, noFigures: 0, badDate: 0,
   unclassified: 0, engOverReach: [], duplicatedFigures: [], extremeReach: [],
-  unknownServices: new Set(),
+  unknownServices: new Set(), corrected: [],
 };
 
 /** LICIOUS / Licious are one client — fold case, keep the most common spelling. */
@@ -196,10 +213,28 @@ parsed.data.forEach((row, i) => {
       return { name: canon ?? tidy(s), legacy };
     });
 
-  const reach = parseNum(pick(row, COLS.achievedReach));
-  const eng = parseNum(pick(row, COLS.achievedEng));
+  const rawReach = pick(row, COLS.achievedReach);
+  const rawEng = pick(row, COLS.achievedEng);
+  let reach = parseNum(rawReach);
+  let eng = parseNum(rawEng);
   const promisedReach = parseNum(pick(row, COLS.promisedReach));
   const promisedEng = parseNum(pick(row, COLS.promisedEng));
+
+  // Explicit, hand-confirmed overrides. Applied before anything downstream so
+  // aggregates, sorts and the 3D field all see the corrected figure.
+  const fix = corrections.get(keyOf(client, name));
+  let corrected = null;
+  if (fix) {
+    fix.applied = true;
+    corrected = { note: fix.note ?? '', was: {}, now: {} };
+    if (typeof fix.reach === 'number') {
+      corrected.was.reach = rawReach; corrected.now.reach = fix.reach; reach = fix.reach;
+    }
+    if (typeof fix.eng === 'number') {
+      corrected.was.eng = rawEng; corrected.now.eng = fix.eng; eng = fix.eng;
+    }
+    health.corrected.push({ label: `${client} — ${name}`, ...corrected });
+  }
 
   const date = parseDate(pick(row, COLS.startDate)) || parseDate(pick(row, COLS.approvedAt));
   const endDate = parseDate(pick(row, COLS.endDate));
@@ -239,6 +274,8 @@ parsed.data.forEach((row, i) => {
     year: date ? +date.slice(0, 4) : null,
     deliverables: parseNum(pick(row, COLS.deliverables)),
     reach, eng, promisedReach, promisedEng,
+    /** True when data/corrections.json supplied this figure. */
+    corrected: Boolean(corrected),
     reachRatio: reach !== null && promisedReach ? reach / promisedReach : null,
     engRatio: eng !== null && promisedEng ? eng / promisedEng : null,
     report,
@@ -331,6 +368,7 @@ const meta = {
     engOverReach: health.engOverReach,
     duplicatedFigures: health.duplicatedFigures,
     extremeReach: health.extremeReach.sort((a, b) => b.reach - a.reach),
+    corrected: health.corrected,
     unknownServices: [...health.unknownServices],
   },
 };
@@ -338,6 +376,15 @@ const meta = {
 // Served as static assets rather than bundled into JS: a 2MB module is parsed
 // on the main thread before anything paints, whereas a fetched JSON file is
 // cacheable, parsed natively and downloads in parallel with the bundle.
+const stale = [...corrections.values()].filter((c) => !c.applied);
+if (stale.length) {
+  console.error('\n  Corrections in data/corrections.json match no row:');
+  stale.forEach((c) => console.error(`    · ${c.client} — ${c.campaign}`));
+  console.error('  Either the campaign was renamed in the sheet, or the fix has');
+  console.error('  landed at source and the entry should be deleted.\n');
+  process.exit(1);
+}
+
 const out = path.join(ROOT, 'public', 'data');
 fs.mkdirSync(out, { recursive: true });
 fs.writeFileSync(path.join(out, 'campaigns.json'), JSON.stringify(campaigns));
@@ -357,6 +404,7 @@ L('Unparseable date', health.badDate);
 L('Engagement > reach', health.engOverReach.length);
 L('Reach === engagement', health.duplicatedFigures.length);
 L('Reach above 2B', health.extremeReach.length);
+L('Figures corrected', health.corrected.length);
 health.extremeReach.slice(0, 5).forEach((e) =>
   console.log(`      · ${e.label} — sheet reads "${e.raw}"`));
 if (health.unknownServices.size) {

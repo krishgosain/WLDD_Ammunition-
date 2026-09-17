@@ -1,0 +1,44 @@
+{
+  "_comment": [
+    "Authoritative figure corrections from WLDD, applied on top of the sheet export.",
+    "",
+    "The sheet is still the source of truth. This file exists so a known-bad figure",
+    "stays fixed across re-exports instead of being silently reintroduced the next",
+    "time someone downloads the tab. When the sheet itself is corrected, delete the",
+    "entry here — ingest fails loudly if an entry no longer matches a row, so dead",
+    "overrides cannot rot unnoticed.",
+    "",
+    "Match is on client + campaign name, case- and whitespace-insensitive.",
+    "Only the fields present are overridden; omit what should stay as the sheet has it."
+  ],
+  "corrections": [
+    {
+      "client": "FOXTALE",
+      "campaign": "GVC Brief | Foxtale x WLDD",
+      "reach": 9700000,
+      "eng": 2300000,
+      "note": "Confirmed by WLDD. Sheet read '9733017 Million' / '233457 Thousand'."
+    },
+    {
+      "client": "FOXTALE",
+      "campaign": "WLDD x Foxtale | Oily Sunscreen",
+      "reach": 2500000,
+      "eng": 33000,
+      "note": "Confirmed by WLDD. Sheet read '2977881 Million' / '33838 Thousand'."
+    },
+    {
+      "client": "Leeford Healthcare",
+      "campaign": "Leeford Healthcare  WLDD",
+      "reach": 13000000,
+      "eng": 120600,
+      "note": "Confirmed by WLDD. Sheet read '12800000 Million' / '120500 Thousand'."
+    },
+    {
+      "client": "House of Masaba",
+      "campaign": "Love Child Masaba - DVC Amplification",
+      "reach": 8000000,
+      "eng": 86000,
+      "note": "Confirmed by WLDD. Sheet read '7800000 Million' / '80 Thousand'."
+    }
+  ]
+}

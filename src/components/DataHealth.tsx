@@ -19,20 +19,65 @@ export default function DataHealth({ meta }: { meta: Meta }) {
     { n: h.engOverReach.length, label: 'Engagement > reach', hint: 'One of the two figures is in the wrong column' },
     { n: h.duplicatedFigures.length, label: 'Reach = engagement', hint: 'Same number pasted into both columns' },
     { n: h.extremeReach.length, label: 'Reach above 2B', hint: 'Larger than any plausible audience' },
+    { n: h.corrected.length, label: 'Confirmed corrections', hint: 'Figures WLDD has overridden by hand', good: true },
   ];
 
   return (
     <div className="panel">
       <p className="panel__intro">
-        {fmtExact(h.total)} rows as they stand in the sheet. Figures in this tool are shown
-        exactly as recorded — nothing below has been altered. These are the rows worth
-        a second look when someone next opens the source.
+        {fmtExact(h.total)} rows as they stand in the sheet. Figures are shown exactly as
+        recorded, except where WLDD has explicitly confirmed a correction — those are
+        listed first, with the string they replaced. Everything below them is the rows
+        worth a second look when someone next opens the source.
       </p>
+
+      {h.corrected.length > 0 && (
+        <section className="sec">
+          <h4>Confirmed corrections ({h.corrected.length})</h4>
+          <p className="hint">
+            Held in <code style={{ font: '12px var(--mono)' }}>data/corrections.json</code> and
+            reapplied on every ingest, so a fresh export of the sheet cannot quietly
+            reintroduce the old figure. Delete an entry once the sheet itself is fixed —
+            the build fails if one stops matching a row.
+          </p>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Campaign</th><th>Sheet read</th>
+                <th className="num">Now shows</th>
+              </tr>
+            </thead>
+            <tbody>
+              {h.corrected.map((c) => (
+                <tr key={c.label}>
+                  <td>{c.label}</td>
+                  <td>
+                    {c.was.reach && (
+                      <div><code style={{ font: '12px var(--mono)', color: 'var(--muted)' }}>{c.was.reach}</code> reach</div>
+                    )}
+                    {c.was.eng && (
+                      <div><code style={{ font: '12px var(--mono)', color: 'var(--muted)' }}>{c.was.eng}</code> engagement</div>
+                    )}
+                  </td>
+                  <td className="num">
+                    {c.now.reach !== undefined && (
+                      <div style={{ color: 'var(--good)', fontWeight: 600 }}>{fmt(c.now.reach)} reach</div>
+                    )}
+                    {c.now.eng !== undefined && (
+                      <div style={{ color: 'var(--good)', fontWeight: 600 }}>{fmt(c.now.eng)} engagement</div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <div className="statstrip">
         {tiles.map((t) => (
           <div key={t.label}>
-            <b className="num" style={{ color: t.n ? 'var(--warn)' : 'var(--good)' }}>{t.n}</b>
+            <b className="num" style={{ color: !t.n || t.good ? 'var(--good)' : 'var(--warn)' }}>{t.n}</b>
             <i>{t.label}</i>
             <p className="hint" style={{ margin: '4px 0 0' }}>{t.n ? pct(t.n) : 'clean'} · {t.hint}</p>
           </div>

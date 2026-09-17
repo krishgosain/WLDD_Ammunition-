@@ -101,10 +101,38 @@ a link shared with a prospect opens in the same state.
 
 **Figures are shown exactly as the sheet records them.** `235747 Thousand` reads
 as 235.7M because that is what the sheet says and WLDD has confirmed those are
-real. Nothing in the pipeline rewrites a number. The **Health** view lists the
-rows worth a second look — 4 above two billion, 51 with engagement recorded
-above reach, 63 with the same number in both columns — so they can be fixed at
-source rather than silently patched here.
+real. No rule in the pipeline infers a correction. The **Health** view lists the
+rows worth a second look — 51 with engagement recorded above reach, 63 with the
+same number in both columns — so they can be fixed at source rather than
+silently patched here.
+
+### Corrections
+
+The one exception is `data/corrections.json`: figures WLDD has explicitly
+confirmed and asked to override, applied by hand rather than by rule.
+
+```json
+{
+  "client": "FOXTALE",
+  "campaign": "GVC Brief | Foxtale x WLDD",
+  "reach": 9700000,
+  "eng": 2300000,
+  "note": "Confirmed by WLDD. Sheet read '9733017 Million' / '233457 Thousand'."
+}
+```
+
+It exists because the sheet is re-exported: editing `campaigns.csv` directly
+means the next download quietly reinstates the bad figure. Overrides are matched
+on client + campaign name (case- and whitespace-insensitive), reapplied on every
+ingest, and every one is listed in the Health view beside the string it
+replaced.
+
+**`npm run build` fails if an override stops matching a row.** That is the point
+— when a campaign is renamed, or the fix lands in the sheet itself, the build
+tells you to delete the entry instead of letting a dead override rot unnoticed.
+
+Four figures are currently corrected (the four that previously read above two
+billion). Removing them is a one-line delete each once the sheet is fixed.
 
 The one derived figure that *is* clamped is the "% of target" label, which is
 computed by this app rather than read from the sheet: past 100× it collapses to
@@ -148,6 +176,7 @@ doesn't toggle pitch mode.
 
 ```
 data/campaigns.csv          source export, committed
+data/corrections.json       hand-confirmed figure overrides
 scripts/ingest.mjs          CSV → JSON + data-quality report
 public/data/                generated; fetched at runtime, never hand-edited
 src/lib/
@@ -192,5 +221,5 @@ the field's idle rotation.
 
 - [ ] Budget — decks don't carry spend; needs a join against the finance sheet
 - [ ] Self-hosted Bricolage Grotesque, to drop the render-blocking font request
-- [ ] Admin queue — resolve the Health findings in-app and write back to the sheet
+- [ ] Admin queue — resolve the Health findings in-app and write corrections back to the sheet
 - [ ] Saved searches per user
