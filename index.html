@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>WLDD Ammo — Campaign Repository</title>
+    <meta name="description" content="Search every campaign WLDD has run. Built for BD: find the proof, quote the real number, send the link." />
+    <meta name="theme-color" content="#0A0A0B" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#F5F5F5" media="(prefers-color-scheme: light)" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <style>
+      /* Paint the brand canvas before the bundle lands, so there is no flash. */
+      html { background: #0A0A0B; }
+      html[data-theme='light'] { background: #F5F5F5; }
+    </style>
+    <script>
+      // Restore the stored theme before first paint.
+      try {
+        var t = localStorage.getItem('wldd-theme');
+        if (t) document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>WLDD Ammo needs JavaScript to search the campaign archive.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

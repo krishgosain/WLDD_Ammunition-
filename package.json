@@ -1,0 +1,32 @@
+{
+  "name": "wldd-ammo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "ingest": "node scripts/ingest.mjs",
+    "predev": "npm run ingest",
+    "dev": "vite",
+    "build": "npm run ingest && tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.117.3",
+    "@react-three/fiber": "^8.17.10",
+    "@tanstack/react-virtual": "^3.10.9",
+    "framer-motion": "^11.15.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.171.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@types/three": "^0.171.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "papaparse": "^5.4.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  }
+}

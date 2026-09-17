@@ -1,0 +1,98 @@
+/*
+ * WLDD design tokens.
+ *
+ * Palette and type are lifted from wldd.in's own stylesheet so this tool reads
+ * as WLDD property rather than a generic dashboard:
+ *   #131313 ink · #FF3427 red · #FFD644 yellow · #8580F7 violet
+ *   #DF29B1 magenta · #5271FF blue · #F97D92 pink · #077E37 green
+ *   Bricolage Grotesque
+ *
+ * Dark is the default because the brand site is black-first. Light is a full
+ * peer, not an afterthought.
+ */
+
+:root {
+  /* brand constants — identical in both themes */
+  --wldd-red:      #FF3427;
+  --wldd-yellow:   #FFD644;
+  --wldd-gold:     #F3BE00;
+  --wldd-violet:   #8580F7;
+  --wldd-magenta:  #DF29B1;
+  --wldd-blue:     #5271FF;
+  --wldd-pink:     #F97D92;
+  --wldd-green:    #2ED47A;
+  --wldd-ink:      #131313;
+  --wldd-paper:    #F5F5F5;
+
+  /* dark theme surfaces */
+  --bg:        #0A0A0B;
+  --bg-deep:   #000000;
+  --surface:   #131316;
+  --surface-2: #1A1A1F;
+  --surface-3: #232329;
+  --line:      #2A2A32;
+  --line-soft: #1E1E24;
+
+  --ink:    #F4F4F6;
+  --ink-2:  #B8B8C4;
+  --muted:  #7C7C8C;
+  --faint:  #55556240;
+
+  --signal:      var(--wldd-red);
+  --signal-ink:  #FFFFFF;
+  --signal-soft: #2A1210;
+  --figure:      var(--wldd-yellow);
+
+  --good:      var(--wldd-green);
+  --good-soft: #0C2A1C;
+  --warn:      var(--wldd-gold);
+  --warn-soft: #2A2310;
+
+  --r-sm: 8px;
+  --r:    12px;
+  --r-lg: 18px;
+  --r-xl: 26px;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / .4);
+  --shadow-2: 0 8px 28px -8px rgb(0 0 0 / .65);
+  --shadow-3: 0 28px 70px -18px rgb(0 0 0 / .8);
+
+  --ease: cubic-bezier(.22, 1, .36, 1);
+  --fast: .16s var(--ease);
+  --med:  .28s var(--ease);
+
+  --rail: 258px;
+  --font: 'Bricolage Grotesque', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg:        #F5F5F5;
+  --bg-deep:   #EAEAEC;
+  --surface:   #FFFFFF;
+  --surface-2: #F7F7F9;
+  --surface-3: #EEEEF1;
+  --line:      #DEDEE4;
+  --line-soft: #EAEAEF;
+
+  --ink:    #131313;
+  --ink-2:  #3A3A44;
+  --muted:  #6C6C7A;
+  --faint:  #13131310;
+
+  --signal-soft: #FFE9E7;
+  --figure:      #8A6A00;
+
+  --good:      #077E37;
+  --good-soft: #E2F5EA;
+  --warn:      #8A6A00;
+  --warn-soft: #FDF3D8;
+
+  --shadow-1: 0 1px 2px rgb(19 19 19 / .07);
+  --shadow-2: 0 8px 28px -10px rgb(19 19 19 / .18);
+  --shadow-3: 0 28px 70px -20px rgb(19 19 19 / .26);
+
+  color-scheme: light;
+}
