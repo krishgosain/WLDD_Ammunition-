@@ -127,6 +127,36 @@ export function industryColour(industry: string, all: string[]): string {
   return c;
 }
 
+/**
+ * Words that carry no selectivity on their own.
+ *
+ * Shared by the parser and the vocabulary builder, and that sharing is the whole
+ * point: "brand" appears inside client names like "Brand Solutions", so indexing
+ * every word of every client name made a bare "brand" resolve to three clients
+ * and quietly ANDed them into the query. A stopword must never become an entity
+ * by itself — only as part of a longer phrase someone actually typed.
+ */
+export const STOPWORDS = new Set([
+  'a','an','the','of','and','or','with','for','in','on','to','at','by','from','as','is','are',
+  'was','were','be','been','our','we','us','they','their','it','its','that','this','these',
+  'those','there','here','which','who','whom','whose','what','when','where','how','any','all',
+  'some','every','each','both','other','another','same','show','showed','see','find','get',
+  'give','need','want','look','looking','pull','fetch','list','did','do','does','done','doing',
+  'have','has','had','make','made','run','ran','running','work','worked','working','works',
+  'campaign','campaigns','case','study','studies','example','examples','brand','brands',
+  'client','clients','account','accounts','project','projects','piece','pieces','stuff','thing',
+  'things','something','anything','everything','best','top','good','great','big','biggest',
+  'largest','highest','above','over','more','than','least','min','minimum','max','maximum',
+  'plus','around','near','about','upwards','under','below','less','between','reach','reaches',
+  'reached','views','view','impressions','engagement','engagements','engaged','crossed',
+  'delivered','deliver','similar','like','related','type','kind','sort','service','services',
+  'please','me','my','i','you','can','could','would','should','media','digital','private',
+  'limited','pvt','ltd','company','group','india','global','network','solutions','world',
+]);
+
+/** Short tokens that are real terms despite looking like noise. */
+export const KEEP_SHORT = new Set(['ott', 'orm', 'dp', 'ai', 'ev', 'x', 'solo']);
+
 export function resolveConcept(token: string): { industries: string[]; services: string[] } {
   const t = token.toLowerCase().trim();
   return { industries: INDUSTRY_SYNONYMS[t] ?? [], services: SERVICE_SYNONYMS[t] ?? [] };

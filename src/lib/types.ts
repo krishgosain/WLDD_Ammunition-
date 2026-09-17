@@ -113,16 +113,49 @@ export const FACET_TO_FILTER: Record<FacetKey, keyof Filters> = {
   clientTypes: 'clientTypes', statuses: 'statuses', leads: 'leads',
 };
 
+/** A typo the parser fixed on its own, always shown so it can be undone.
+ *  Distinct from `Correction`, which is a figure override from the sheet. */
+export interface TypoFix {
+  from: string;
+  to: string;
+  kind: 'industry' | 'service' | 'client' | 'lead';
+}
+
+/** A near-miss the parser offers but does not apply — "did you mean". */
+export interface DidYouMean extends TypoFix {
+  values: string[];
+  count: number;
+}
+
 /** Structured intent pulled out of the search box. */
 export interface Query {
   raw: string;
+  /** Quoted fragments, matched verbatim. */
+  phrases: string[];
+  /** Free text left after entities and noise are removed. */
   terms: string[];
   industries: string[];
   services: string[];
   clients: string[];
+  leads: string[];
   reachMin: number | null;
   engMin: number | null;
   year: number | null;
+  corrections: TypoFix[];
+  suggestions: DidYouMean[];
+}
+
+/**
+ * How closely a campaign answers the free text.
+ * exact ▸ verbatim in the title · strong ▸ all terms in the title
+ * partial ▸ all terms in the record · broad ▸ some terms in the record
+ */
+export type Tier = 'exact' | 'strong' | 'partial' | 'broad';
+
+export interface Scored {
+  c: Campaign;
+  tier: Tier;
+  score: number;
 }
 
 /**
@@ -140,8 +173,14 @@ export interface Shortfall {
 export interface SearchResult {
   query: Query;
   items: Campaign[];
+  /** Match quality per campaign id, for the badge on each card. */
+  tiers: Map<string, Tier>;
   /** Size of the categorical pool before numeric floors were applied. */
   poolSize: number;
+  /** Tightest tier present in the results, or null when there are none. */
+  bestTier: Tier | null;
+  /** True when only broad matches existed and the net had to be widened. */
+  widened: boolean;
   shortfall: Shortfall | null;
 }
 

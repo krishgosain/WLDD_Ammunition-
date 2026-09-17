@@ -9,9 +9,13 @@ export function isTyping(el: EventTarget | null): boolean {
 }
 
 export type Binding = {
+  /**
+   * Matched against `event.key`, so a binding names the character produced
+   * rather than the physical key plus modifiers. Requiring Shift for "?" broke
+   * on layouts where it is unshifted; the character is the intent.
+   */
   key: string;
   meta?: boolean;
-  shift?: boolean;
   /** Allow the binding to fire while a field has focus. */
   whileTyping?: boolean;
   run: (e: KeyboardEvent) => void;
@@ -24,7 +28,6 @@ export function useHotkeys(bindings: Binding[], deps: unknown[] = []) {
         if (e.key.toLowerCase() !== b.key.toLowerCase()) continue;
         if (b.meta && !(e.metaKey || e.ctrlKey)) continue;
         if (!b.meta && (e.metaKey || e.ctrlKey)) continue;
-        if (b.shift && !e.shiftKey) continue;
         if (!b.whileTyping && isTyping(e.target)) continue;
         e.preventDefault();
         b.run(e);

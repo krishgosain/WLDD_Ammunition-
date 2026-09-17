@@ -60,8 +60,41 @@ three.js (232kB gz) loads only when the Reach Field is opened.
 values in the sheet — `beauty`, `skincare`, `makeup`, `grooming` all resolve to
 the same vertical; `bank`, `fintech`, `bfsi`, `lending` all resolve to Finance.
 
-The search bar shows what it understood as chips underneath, so when it guesses
-wrong the person can see why and steer it.
+**Typos resolve too.** `src/lib/fuzzy.ts` builds a vocabulary from the archive
+itself — every industry, service, client and lead — so new clients become
+searchable, and misspellable, the moment they land in the sheet. `finech` finds
+Finance, `razorpey` finds Razorpay, `influencor` finds Influencers.
+
+Ranking is not raw edit distance, which gets the common case wrong: `cosmet` is
+one edit from the client *COMET* and two from *cosmetic*, so distance alone
+picks a five-campaign client over a seventy-five-campaign industry. Because
+search-as-you-type means every query passes through its own prefixes, a prefix
+relationship outranks any non-exact edit, and campaign weight breaks the
+remaining ties.
+
+**Compound requests work.** "any amplification done for Myntra above 20M reach"
+resolves a service, a client and a numeric floor, and drops the rest as noise.
+Stopwords never resolve as entities on their own — "brand" appears inside client
+names like *Brand Solutions*, and letting a bare "brand" bind to them silently
+narrowed queries to nothing.
+
+**Matches are tiered**, tightest first:
+
+| Tier | Meaning |
+|---|---|
+| exact | a quoted phrase, or the whole query, verbatim in the title |
+| strong | every term in the client or campaign name |
+| partial | every term somewhere in the record |
+| broad | only some terms match |
+
+Broad matches appear **only when nothing tighter exists**, are labelled on the
+card, and the result header says the net was widened. Quoting a phrase —
+`"oily sunscreen"` — makes it a hard requirement.
+
+**Every chip is a button.** The intent row shows exactly how the query was read;
+clicking a chip removes that constraint, clicking an amber correction undoes it
+and restores what you typed, and "did you mean" offers the runner-up readings
+one click away.
 
 ### 2. Never quote a number that isn't there
 
@@ -152,6 +185,17 @@ computed by this app rather than read from the sheet: past 100× it collapses to
   under 10M is a shelf with no headline proof. Sports, Jewellery and Edtech are
   currently the thinnest.
 - **Health** — what the sheet is missing or contradicting.
+
+## Tests
+
+```bash
+npm test      # 35 checks against the real archive
+```
+
+Covers typo resolution, entity extraction from compound queries, match tiering,
+stopword handling, and the honesty guarantees — that categorical constraints
+never relax and that a shortfall reports the true ceiling. `npm run build` runs
+them, so a regression cannot ship.
 
 ## Keyboard
 

@@ -4,7 +4,7 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Campaign, Filters, SortKey, View, FacetKey } from './lib/types';
 import { EMPTY_FILTERS } from './lib/types';
-import { search, countActive } from './lib/search';
+import { search, countActive, buildVocabulary } from './lib/search';
 import { fmt } from './lib/format';
 import { DEPARTMENTS, industryColour } from './lib/taxonomy';
 import { decode, encode } from './lib/url';
@@ -86,6 +86,9 @@ export default function App() {
 function Ammo({ data }: { data: Dataset }) {
   const { all: ALL, meta: META, byId: BY_ID } = data;
   const INDUSTRIES = useMemo(() => META.facets.industries.map((i) => i.value), [META]);
+  // Built once from the archive, so new clients become searchable — and
+  // misspellable — the moment they appear in the sheet.
+  const vocab = useMemo(() => buildVocabulary(META), [META]);
   const [query, setQuery] = useState(initial.q);
   const [filters, setFilters] = useState<Filters>(initial.filters);
   const [sort, setSort] = useState<SortKey>(initial.sort);
@@ -104,6 +107,20 @@ function Ammo({ data }: { data: Dataset }) {
   );
 
   const searchRef = useRef<HTMLInputElement>(null);
+  const topbarRef = useRef<HTMLElement>(null);
+
+  // The topbar grows when the intent row has chips in it, so the sticky filter
+  // rail has to track its real height rather than assume one.
+  useEffect(() => {
+    const el = topbarRef.current;
+    if (!el) return;
+    const apply = () =>
+      document.documentElement.style.setProperty('--topbar-h', `${el.offsetHeight}px`);
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    apply();
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -113,8 +130,8 @@ function Ammo({ data }: { data: Dataset }) {
   // Deferring keeps typing at 60fps while the 1,700-row pass runs behind it.
   const deferredQuery = useDeferredValue(query);
   const result = useMemo(
-    () => search(ALL, deferredQuery, filters, sort),
-    [ALL, deferredQuery, filters, sort],
+    () => search(ALL, deferredQuery, filters, sort, vocab),
+    [ALL, deferredQuery, filters, sort, vocab],
   );
 
   const state = useMemo(
@@ -193,7 +210,7 @@ function Ammo({ data }: { data: Dataset }) {
     { key: 'c', run: copyLink },
     { key: 'e', run: exportCsv },
     { key: 'r', run: reset },
-    { key: '?', shift: true, run: () => setHelp((v) => !v) },
+    { key: '?', run: () => setHelp((v) => !v) },
     {
       key: 'Escape', whileTyping: true,
       run: () => {
@@ -213,11 +230,11 @@ function Ammo({ data }: { data: Dataset }) {
     () => compare.map((id) => BY_ID.get(id)).filter(Boolean) as Campaign[],
     [BY_ID, compare],
   );
-  const { shortfall } = result;
+  const { shortfall, widened, tiers } = result;
 
   return (
     <div className="app">
-      <header className="topbar">
+      <header className="topbar" ref={topbarRef}>
         <div className="topbar__row">
           <a className="mark" href={location.pathname} aria-label="WLDD Ammo — home">
             <span className="mark__dot" aria-hidden />
@@ -331,9 +348,25 @@ function Ammo({ data }: { data: Dataset }) {
             </div>
           )}
 
+          {/* Broad matches are shown only when nothing tighter exists, and
+              never without saying so. */}
+          {widened && !shortfall && result.items.length > 0 && (
+            <div className="shortfall shortfall--info" role="status">
+              <span className="shortfall__icon"><IconWarn /></span>
+              <div>
+                <p className="shortfall__lead">
+                  No campaign matches all of that.
+                </p>
+                <p className="shortfall__body">
+                  Showing {result.items.length} that match part of it — each card says which.
+                </p>
+              </div>
+            </div>
+          )}
+
           {view === 'grid' && (
             <ProductGrid
-              items={result.items} colourOf={colourOf} picked={picked} pitch={pitch}
+              items={result.items} tiers={tiers} colourOf={colourOf} picked={picked} pitch={pitch}
               onOpen={(c) => setOpenId(c.id)} onPick={togglePick}
               emptyPool={result.poolSize === 0} onReset={reset}
             />

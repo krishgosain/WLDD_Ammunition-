@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import type { Campaign } from '../lib/types';
+import type { Campaign, Tier } from '../lib/types';
 import { fmt, fmtRatio } from '../lib/format';
 import { IconPlus, IconCheck } from './Icons';
 
@@ -10,9 +10,10 @@ import { IconPlus, IconCheck } from './Icons';
  * said out loud on a call. Everything else stays quiet.
  */
 function ProductCard({
-  campaign: c, colour, picked, pitch, onOpen, onPick,
+  campaign: c, tier, colour, picked, pitch, onOpen, onPick,
 }: {
   campaign: Campaign;
+  tier?: Tier;
   colour: string;
   picked: boolean;
   pitch: boolean;
@@ -80,6 +81,9 @@ function ProductCard({
           : <span className="pill">{c.clientType}</span>}
         {c.services.slice(0, 2).map((s) => <span className="tag" key={s}>{s}</span>)}
         {c.services.length > 2 && <span className="tag">+{c.services.length - 2}</span>}
+        {/* Only worth saying when the match is not an obvious one. */}
+        {tier === 'partial' && <span className="tier tier--partial">in the brief</span>}
+        {tier === 'broad' && <span className="tier tier--broad">partial match</span>}
         {running && <span className="mark mark--live">● Running</span>}
         {!running && !c.report && !pitch && <span className="mark">No report</span>}
       </div>

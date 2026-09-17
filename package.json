@@ -7,9 +7,10 @@
     "ingest": "node scripts/ingest.mjs",
     "predev": "npm run ingest",
     "dev": "vite",
-    "build": "npm run ingest && tsc --noEmit && vite build",
+    "build": "npm run ingest && tsc --noEmit && npm test && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/run-tests.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.117.3",
@@ -27,6 +28,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "papaparse": "^5.4.1",
     "typescript": "^5.7.2",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "esbuild": "^0.24.2"
   }
 }

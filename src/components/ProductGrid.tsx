@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { Campaign } from '../lib/types';
+import type { Campaign, Tier } from '../lib/types';
 import ProductCard from './ProductCard';
 
 const COL_MIN = 310;
@@ -12,9 +12,10 @@ const ROW_H = 262;
  * scrolling, so only the visible rows exist in the DOM.
  */
 export default function ProductGrid({
-  items, colourOf, picked, pitch, onOpen, onPick, emptyPool, onReset,
+  items, tiers, colourOf, picked, pitch, onOpen, onPick, emptyPool, onReset,
 }: {
   items: Campaign[];
+  tiers: Map<string, Tier>;
   colourOf: (c: Campaign) => string;
   picked: Set<string>;
   pitch: boolean;
@@ -79,6 +80,7 @@ export default function ProductGrid({
                 <ProductCard
                   key={c.id}
                   campaign={c}
+                  tier={tiers.get(c.id)}
                   colour={colourOf(c)}
                   picked={picked.has(c.id)}
                   pitch={pitch}
