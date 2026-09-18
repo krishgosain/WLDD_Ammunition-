@@ -1,8 +1,14 @@
+import path from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    // shadcn components are written against the "@/" alias.
+    alias: { '@': path.resolve(__dirname, './src') },
+  },
   build: {
     target: 'es2020',
     chunkSizeWarningLimit: 900,

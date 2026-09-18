@@ -22,8 +22,11 @@ import ClientDossier from './components/ClientDossier';
 import GapFinder from './components/GapFinder';
 import DataHealth from './components/DataHealth';
 import ShortcutHelp from './components/ShortcutHelp';
+import Backdrop from './components/Backdrop';
+import Segmented from './components/Segmented';
 import {
   IconWarn, IconSun, IconMoon, IconFilter, IconLink, IconDownload, IconPresent, IconClose,
+  IconWaves,
 } from './components/Icons';
 import './styles/app.css';
 
@@ -105,6 +108,14 @@ function Ammo({ data }: { data: Dataset }) {
   const [theme, setTheme] = useState<'dark' | 'light'>(
     () => (localStorage.getItem('wldd-theme') as 'dark' | 'light') ?? 'dark',
   );
+  // The shader field is the one piece of pure decoration here, so it is a
+  // preference rather than a fact of the interface.
+  const [ambient, setAmbient] = useState(
+    () => localStorage.getItem('wldd-ambient') !== 'off',
+  );
+  useEffect(() => {
+    localStorage.setItem('wldd-ambient', ambient ? 'on' : 'off');
+  }, [ambient]);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const topbarRef = useRef<HTMLElement>(null);
@@ -234,6 +245,7 @@ function Ammo({ data }: { data: Dataset }) {
 
   return (
     <div className="app">
+      <Backdrop enabled={ambient} />
       <header className="topbar" ref={topbarRef}>
         <div className="topbar__row">
           <a className="mark" href={location.pathname} aria-label="WLDD Ammo — home">
@@ -261,6 +273,11 @@ function Ammo({ data }: { data: Dataset }) {
             </button>
             <button className="iconbtn" onClick={copyLink} aria-label="Copy link to this search"><IconLink /></button>
             <button className="iconbtn" onClick={exportCsv} aria-label="Export results as CSV"><IconDownload /></button>
+            <button className={ambient ? 'iconbtn' : 'iconbtn iconbtn--off'}
+              onClick={() => setAmbient((v) => !v)} aria-pressed={ambient}
+              aria-label="Toggle the ambient field" title="Ambient field">
+              <IconWaves />
+            </button>
             <button className="iconbtn" onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
               aria-label="Toggle theme">{theme === 'dark' ? <IconSun /> : <IconMoon />}</button>
             <button className="iconbtn" onClick={() => setHelp(true)} aria-label="Keyboard shortcuts">?</button>
@@ -306,12 +323,12 @@ function Ammo({ data }: { data: Dataset }) {
             </p>
             <div className="toolbar__spacer" />
 
-            <div className="segmented" role="group" aria-label="View">
-              {([['grid', 'Grid'], ['field', '3D Field'], ['gaps', 'Gaps'], ['health', 'Health']] as [View, string][])
-                .map(([v, label]) => (
-                  <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>{label}</button>
-                ))}
-            </div>
+            <Segmented
+              label="View"
+              value={view}
+              onChange={setView}
+              options={[['grid', 'Grid'], ['field', 'Field'], ['gaps', 'Gaps'], ['health', 'Health']]}
+            />
 
             {view === 'grid' && (
               <select className="select" value={sort} aria-label="Sort by"

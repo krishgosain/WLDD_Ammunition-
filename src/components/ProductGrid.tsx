@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Campaign, Tier } from '../lib/types';
 import ProductCard from './ProductCard';
 
-const COL_MIN = 310;
+const COL_MIN = 320;
 const GAP = 14;
-const ROW_H = 262;
+const ROW_H = 238;
 
 /**
  * Virtualised card grid. At ~1,700 campaigns, mounting every card destroys
@@ -66,28 +67,48 @@ export default function ProductGrid({
       ) : (
         <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
           {virtual.getVirtualItems().map((row) => (
+            // The outer element owns the virtualiser's translateY. The entry
+            // animation lives on an inner element, because Framer Motion writes
+            // `transform` wholesale and would otherwise erase that positioning,
+            // collapsing every row onto the first one.
             <div
               key={row.key}
-              className="gridrow"
               style={{
                 position: 'absolute', top: 0, left: 0, width: '100%',
                 height: ROW_H + GAP,
                 transform: `translateY(${row.start}px)`,
-                gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
               }}
             >
-              {items.slice(row.index * cols, row.index * cols + cols).map((c) => (
-                <ProductCard
-                  key={c.id}
-                  campaign={c}
-                  tier={tiers.get(c.id)}
-                  colour={colourOf(c)}
-                  picked={picked.has(c.id)}
-                  pitch={pitch}
-                  onOpen={onOpen}
-                  onPick={onPick}
-                />
-              ))}
+              <motion.div
+                className="gridrow"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.32,
+                  ease: [0.22, 1, 0.36, 1],
+                  // Stagger by row position, capped so a long scroll never
+                  // waits on a queue of delays.
+                  delay: Math.min(row.index, 5) * 0.035,
+                }}
+                style={{
+                  height: '100%',
+                  gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                }}
+              >
+                {items.slice(row.index * cols, row.index * cols + cols).map((c, i) => (
+                  <ProductCard
+                    key={c.id}
+                    campaign={c}
+                    tier={tiers.get(c.id)}
+                    index={row.index * cols + i}
+                    colour={colourOf(c)}
+                    picked={picked.has(c.id)}
+                    pitch={pitch}
+                    onOpen={onOpen}
+                    onPick={onPick}
+                  />
+                ))}
+              </motion.div>
             </div>
           ))}
         </div>

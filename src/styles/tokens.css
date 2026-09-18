@@ -1,11 +1,15 @@
 /*
  * WLDD design tokens.
  *
- * Palette and type are lifted from wldd.in's own stylesheet so this tool reads
- * as WLDD property rather than a generic dashboard:
+ * Palette and display type are lifted from wldd.in's own stylesheet so this
+ * reads as WLDD property rather than a generic dashboard:
  *   #131313 ink · #FF3427 red · #FFD644 yellow · #8580F7 violet
  *   #DF29B1 magenta · #5271FF blue · #F97D92 pink · #077E37 green
  *   Bricolage Grotesque
+ *
+ * The second voice is JetBrains Mono. Every label, count, id and unit is set in
+ * it — that single split is what stops a data tool reading as a form. Display
+ * type carries the meaning, mono carries the machinery.
  *
  * Dark is the default because the brand site is black-first. Light is a full
  * peer, not an afterthought.
@@ -24,65 +28,75 @@
   --wldd-ink:      #131313;
   --wldd-paper:    #F5F5F5;
 
-  /* dark theme surfaces */
-  --bg:        #0A0A0B;
-  --bg-deep:   #000000;
-  --surface:   #131316;
-  --surface-2: #1A1A1F;
-  --surface-3: #232329;
-  --line:      #2A2A32;
-  --line-soft: #1E1E24;
+  /* dark surfaces — a tight stack, so hairlines do the separating */
+  --bg:        #08080A;
+  --bg-deep:   #030306;
+  --surface:   #0E0E12;
+  --surface-2: #141419;
+  --surface-3: #1C1C23;
+  --line:      #24242E;
+  --line-soft: #17171D;
+  --hairline:  #FFFFFF14;
 
-  --ink:    #F4F4F6;
-  --ink-2:  #B8B8C4;
-  --muted:  #7C7C8C;
-  --faint:  #55556240;
+  --ink:    #F2F2F5;
+  --ink-2:  #A8A8B8;
+  --muted:  #6E6E80;
+  --faint:  #4A4A5A;
 
   --signal:      var(--wldd-red);
   --signal-ink:  #FFFFFF;
-  --signal-soft: #2A1210;
+  --signal-soft: #24100F;
   --figure:      var(--wldd-yellow);
 
   --good:      var(--wldd-green);
-  --good-soft: #0C2A1C;
+  --good-soft: #0A2618;
   --warn:      var(--wldd-gold);
-  --warn-soft: #2A2310;
+  --warn-soft: #251F0D;
 
+  /* the light that makes a surface look lit from above */
+  --edge-top: linear-gradient(180deg, #FFFFFF18, transparent 42%);
+  --glow:     0 0 0 1px var(--hairline), 0 1px 0 0 #FFFFFF0A inset;
+
+  --r-xs: 5px;
   --r-sm: 8px;
-  --r:    12px;
-  --r-lg: 18px;
-  --r-xl: 26px;
+  --r:    11px;
+  --r-lg: 15px;
+  --r-xl: 22px;
 
-  --shadow-1: 0 1px 2px rgb(0 0 0 / .4);
-  --shadow-2: 0 8px 28px -8px rgb(0 0 0 / .65);
-  --shadow-3: 0 28px 70px -18px rgb(0 0 0 / .8);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / .5);
+  --shadow-2: 0 10px 34px -10px rgb(0 0 0 / .75);
+  --shadow-3: 0 34px 80px -22px rgb(0 0 0 / .85);
 
-  --ease: cubic-bezier(.22, 1, .36, 1);
-  --fast: .16s var(--ease);
-  --med:  .28s var(--ease);
+  /* one easing family, so everything moves like it belongs together */
+  --ease:   cubic-bezier(.22, 1, .36, 1);
+  --ease-io: cubic-bezier(.65, 0, .35, 1);
+  --fast: .15s var(--ease);
+  --med:  .3s var(--ease);
+  --slow: .5s var(--ease);
 
-  --rail: 258px;
+  --rail: 262px;
   --font: 'Bricolage Grotesque', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
 
   color-scheme: dark;
 }
 
 :root[data-theme='light'] {
-  --bg:        #F5F5F5;
-  --bg-deep:   #EAEAEC;
+  --bg:        #F2F2F4;
+  --bg-deep:   #E6E6EA;
   --surface:   #FFFFFF;
   --surface-2: #F7F7F9;
-  --surface-3: #EEEEF1;
-  --line:      #DEDEE4;
-  --line-soft: #EAEAEF;
+  --surface-3: #EDEDF1;
+  --line:      #DEDEE5;
+  --line-soft: #EBEBF0;
+  --hairline:  #13131310;
 
-  --ink:    #131313;
-  --ink-2:  #3A3A44;
-  --muted:  #6C6C7A;
-  --faint:  #13131310;
+  --ink:    #0E0E12;
+  --ink-2:  #3A3A46;
+  --muted:  #6B6B7A;
+  --faint:  #9A9AAA;
 
-  --signal-soft: #FFE9E7;
+  --signal-soft: #FFEDEB;
   --figure:      #8A6A00;
 
   --good:      #077E37;
@@ -90,9 +104,12 @@
   --warn:      #8A6A00;
   --warn-soft: #FDF3D8;
 
-  --shadow-1: 0 1px 2px rgb(19 19 19 / .07);
-  --shadow-2: 0 8px 28px -10px rgb(19 19 19 / .18);
-  --shadow-3: 0 28px 70px -20px rgb(19 19 19 / .26);
+  --edge-top: linear-gradient(180deg, #FFFFFF, transparent 42%);
+  --glow:     0 0 0 1px var(--hairline);
+
+  --shadow-1: 0 1px 2px rgb(19 19 19 / .06);
+  --shadow-2: 0 10px 34px -12px rgb(19 19 19 / .16);
+  --shadow-3: 0 34px 80px -24px rgb(19 19 19 / .24);
 
   color-scheme: light;
 }

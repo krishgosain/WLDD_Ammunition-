@@ -188,5 +188,20 @@ check('sorting by reach is monotonic', () => {
   for (let i = 1; i < vals.length; i++) assert(vals[i] <= vals[i - 1], `not sorted at ${i}`);
 });
 
+console.log('\nVendored components');
+check('the fluid-field shader payload is intact', () => {
+  const src = fs.readFileSync('src/components/ui/fluid-field.tsx', 'utf8');
+  const open = src.indexOf('const FLUID_SOURCE = `') + 'const FLUID_SOURCE = `'.length;
+  const close = src.indexOf('</body></html>`;');
+  assert(open > 0 && close > open, 'FLUID_SOURCE not found');
+  // The payload's own template literals are backslash-escaped so this file
+  // parses; unescaping must round-trip to the original HTML.
+  const html = src.slice(open, close + '</body></html>'.length).replace(/\\`/g, '`');
+  for (const probe of [
+    'const vertexShader = `', 'const fragmentShader = `',
+    'float snoise(vec2 v)', 'id="bg-canvas"', 'gl_FragColor = vec4',
+  ]) assert(html.includes(probe), `missing from payload: ${probe}`);
+});
+
 console.log(`\n${pass} passed, ${fails.length} failed`);
 if (fails.length) { fails.forEach((f) => console.log('  · ' + f)); process.exit(1); }

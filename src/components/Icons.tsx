@@ -48,3 +48,6 @@ export const IconPresent = () => (
 export const IconLayers = () => (
   <svg {...S}><path d="m12 2 9 5-9 5-9-5 9-5Z" /><path d="m3 17 9 5 9-5M3 12l9 5 9-5" /></svg>
 );
+export const IconWaves = () => (
+  <svg {...S}><path d="M2 6c2.5-2 5.5-2 8 0s5.5 2 8 0M2 12c2.5-2 5.5-2 8 0s5.5 2 8 0M2 18c2.5-2 5.5-2 8 0s5.5 2 8 0" /></svg>
+);

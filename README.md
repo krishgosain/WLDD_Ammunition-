@@ -189,13 +189,25 @@ computed by this app rather than read from the sheet: past 100× it collapses to
 ## Tests
 
 ```bash
-npm test      # 35 checks against the real archive
+npm test                                      # 35 search checks
+node tests/ui-audit.mjs http://localhost:4173 # layout audit, needs a preview server
 ```
 
-Covers typo resolution, entity extraction from compound queries, match tiering,
-stopword handling, and the honesty guarantees — that categorical constraints
-never relax and that a shortfall reports the true ceiling. `npm run build` runs
-them, so a regression cannot ship.
+`npm test` covers typo resolution, entity extraction from compound queries,
+match tiering, stopword handling, and the honesty guarantees — that categorical
+constraints never relax and that a shortfall reports the true ceiling.
+`npm run build` runs it, so a regression cannot ship.
+
+`tests/ui-audit.mjs` sweeps 11 views across 4 breakpoints for the defects a
+type checker cannot see: horizontal overflow, off-screen controls, buttons with
+no handler, **overlapping hit targets**, affordances that have drifted off the
+control they belong to, zero-size drawing surfaces, and console errors.
+
+The overlap check exists because Framer Motion writes `transform` wholesale, so
+any element that also uses `transform` to position itself is silently erased.
+That bug shipped three times in this codebase — the compare tray, the shortcut
+sheet, and the virtualised grid, where every row collapsed onto the first and
+clicks landed on the wrong campaign.
 
 ## Keyboard
 
@@ -240,18 +252,104 @@ src/styles/
   app.css
 ```
 
+## shadcn / Tailwind
+
+This started as a Vite + React + TypeScript app with hand-written CSS — no
+Tailwind, no shadcn, no path alias. All three are now in place, added
+**additively** so the existing design system still owns the look.
+
+What was added, and the CLI equivalent if you rebuild this from scratch:
+
+```bash
+npm i tailwindcss @tailwindcss/vite clsx tailwind-merge class-variance-authority
+npx shadcn@latest init        # writes components.json, the alias and lib/utils
+npx shadcn@latest add <name>  # drops a component into src/components/ui
+```
+
+| Piece | Where | Note |
+|---|---|---|
+| Tailwind v4 | `@tailwindcss/vite` in `vite.config.ts` | No config file needed in v4 |
+| Styles entry | `src/styles/app.css` | Declared in `components.json` |
+| Path alias | `@/*` → `src/*` | In both `tsconfig.json` and `vite.config.ts` |
+| `cn()` | `src/lib/utils.ts` | clsx + tailwind-merge, what every shadcn component imports |
+| Manifest | `components.json` | Tells the CLI where things go |
+| Components | `src/components/ui/` | |
+
+**Preflight is deliberately not imported.** `app.css` pulls in Tailwind's theme
+and utilities layers but skips the reset, because this app's visual language
+lives in `tokens.css` and Tailwind's base styles would flatten it. Tailwind is
+therefore purely additive — available for new work, invisible to old.
+
+### Why `components/ui` specifically
+
+This project keeps its own components in `src/components/`. The `ui/`
+subfolder is a separate thing and the split matters:
+
+- **The CLI writes there.** `components.json` points `ui` at
+  `@/components/ui`, and `npx shadcn@latest add` overwrites files at that path.
+  Anything of your own living there can be clobbered by an update.
+- **It marks ownership.** Files in `ui/` are vendored — copied in, occasionally
+  re-copied, and read as "upstream". Files in `components/` are ours. Someone
+  reviewing a diff needs to know which is which without asking.
+- **Imports are portable.** Components published for shadcn assume
+  `@/components/ui/<name>` and `@/lib/utils`. Matching the convention means
+  paste-in components work unedited, which is the whole point.
+
+### FluidFieldBackground
+
+`src/components/ui/fluid-field.tsx`, copied in as given. It renders a
+three.js simplex-noise shader inside a sandboxed iframe.
+
+One fix was required: the payload's own `vertexShader` and `fragmentShader`
+template literals contained unescaped backticks, which close the outer template
+literal early — the file as supplied does not parse. The four backticks are now
+backslash-escaped. That is a JavaScript-level change only; the emitted HTML is
+byte-identical, and a build-time check asserts the shader source survives intact.
+
+It is wired up in `src/components/Backdrop.tsx` rather than used directly,
+because the iframe fetches three.js, Tailwind, GSAP and Iconify from CDNs on
+every load — roughly a megabyte of scripts for a decorative background, on a
+tool whose whole point is opening fast mid-pitch. So the backdrop:
+
+- loads it **lazily, at idle**, never blocking first paint
+- **skips it entirely** under `prefers-reduced-motion`
+- **unmounts it** when the tab is hidden, so no hidden shader loop runs
+- puts it behind a **user toggle** that persists
+- hue-rotates it off the shader's native blue onto WLDD violet-magenta
+
+If the CDN is blocked or offline the iframe renders flat and the grain, grid
+and vignette layers carry the backdrop on their own.
+
 ## Design
 
-Palette and type are taken from wldd.in's own stylesheet so this reads as WLDD
-property rather than a generic dashboard: `#131313` ink, `#FF3427` red,
+Palette and display type are taken from wldd.in's own stylesheet so this reads
+as WLDD property rather than a generic dashboard: `#131313` ink, `#FF3427` red,
 `#FFD644` yellow, `#8580F7` violet, `#DF29B1` magenta, set in Bricolage
 Grotesque. Dark is the default because the brand site is black-first; light is a
 full peer.
 
-The reach figure is the largest element on a card, because it is the number that
-gets said out loud. Everything else stays quiet. Colour never carries meaning on
-its own, focus rings are visible throughout, and `prefers-reduced-motion` stops
-the field's idle rotation.
+**Two voices.** Display type carries meaning; JetBrains Mono carries the
+machinery — every label, count, id, unit and tag. That single split is what
+stops a data tool reading as a form.
+
+**Steep hierarchy.** The reach figure is the largest thing on a card because it
+is the number that gets said out loud on a call. The client, the index and the
+services sit small and mono at the edges. Everything else stays quiet.
+
+**Colour as index.** Each card carries its industry colour as `--accent`, which
+drives the client label, a bleed behind the card and the hover glow — so a
+filtered grid reads as one hue and a mixed grid reads as a spectrum.
+
+**Depth without chrome.** Surfaces are separated by hairlines and a top-edge
+highlight rather than borders and shadows, over a backdrop of live shader,
+film grain, a drafting grid and a vignette.
+
+**Motion with intent.** Rows stagger in as results change, cards lift on a
+spring, and the view switcher's active pill is one shared element that slides
+between options rather than two that blink.
+
+Colour never carries meaning on its own, focus rings are visible throughout,
+and `prefers-reduced-motion` stops every idle animation including the shader.
 
 ## Notes
 
