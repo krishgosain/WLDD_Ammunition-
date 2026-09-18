@@ -90,7 +90,7 @@ for (const [w, h] of SIZES) {
         }
       }
 
-      // 4. overlapping hit targets. Framer Motion writes `transform` wholesale,
+      // 4. overlapping hit targets. Motion writes `transform` wholesale,
       //    so any element that also uses transform for positioning silently
       //    collapses onto its siblings — invisible until a click lands on the
       //    wrong card.

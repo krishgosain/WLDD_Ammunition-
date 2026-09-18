@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import type { Campaign, Tier } from '../lib/types';
 import { fmt, fmtRatio, pitchLine } from '../lib/format';
 import { useCountUp } from '../lib/useCountUp';

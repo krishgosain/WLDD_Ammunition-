@@ -796,7 +796,7 @@ h1, h2, h3, h4, p { margin: 0; }
 
 /* ------------------------------------------------------------- compare tray */
 
-/* Centred with auto margins, never translateX(-50%): framer-motion owns the
+/* Centred with auto margins, never translateX(-50%): Motion owns the
    transform on this element and would overwrite the centring. */
 .tray {
   position: fixed; left: 0; right: 0; bottom: 18px; z-index: 55;

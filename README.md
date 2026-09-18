@@ -41,7 +41,7 @@ run `npm run ingest`, commit. Every push redeploys.
 | Build | Vite 6 + React 18 + TypeScript (strict) | Fast HMR, typed data model |
 | Styling | Hand-written CSS with custom properties | One token file, no utility-class sprawl |
 | 3D | react-three-fiber + drei, lazy-loaded | The Reach Field is a data view, not a background |
-| Motion | Framer Motion | Drawer, tray and list transitions |
+| Motion | Motion (`motion/react`) | Drawer, tray, list and card transitions |
 | Search | Custom engine (`src/lib/search.ts`) | Synonym-aware; a generic fuzzy library cannot do the shortfall logic |
 | Virtualisation | @tanstack/react-virtual | 1,736 cards must not mount at once |
 | CSV | PapaParse, ingest only | Build time; never ships to the browser |
@@ -227,7 +227,7 @@ type checker cannot see: horizontal overflow, off-screen controls, buttons with
 no handler, **overlapping hit targets**, affordances that have drifted off the
 control they belong to, zero-size drawing surfaces, and console errors.
 
-The overlap check exists because Framer Motion writes `transform` wholesale, so
+The overlap check exists because Motion writes `transform` wholesale, so
 any element that also uses `transform` to position itself is silently erased.
 That bug shipped three times in this codebase — the compare tray, the shortcut
 sheet, and the virtualised grid, where every row collapsed onto the first and
@@ -327,6 +327,53 @@ subfolder is a separate thing and the split matters:
 - **Imports are portable.** Components published for shadcn assume
   `@/components/ui/<name>` and `@/lib/utils`. Matching the convention means
   paste-in components work unedited, which is the whole point.
+
+### Motion, not framer-motion
+
+`motion` is `framer-motion` renamed upstream — same library, same API, new entry
+point. Adding `motion` beside the existing `framer-motion` would have bundled
+the animation library twice, so the eight files that imported it were migrated
+to `motion/react` and `framer-motion` was removed. One copy, 42kB gzipped, in
+its own chunk.
+
+If you add another component that asks for `framer-motion`, change its import
+to `motion/react` rather than installing the old package again.
+
+### Vendored components
+
+| Component | Path | Notes |
+|---|---|---|
+| `FluidFieldBackground` | `ui/fluid-field.tsx` | Used via `Backdrop` |
+| `StackSpread` | `ui/stack-spread.tsx` | Not mounted — see below |
+
+### StackSpread
+
+Copied in as given, with its demo at `ui/stack-spread-demo.tsx`. It compiles,
+and rendering it in isolation confirms the mechanism: eight cards, a 350vh
+stage, a 224px travel between the clustered and scattered states, centre copy
+fading in on scroll, pointer parallax once settled.
+
+**It is not mounted anywhere.** The tool opens straight into the grid because
+BD opens it mid-pitch and needs product on screen immediately — putting three
+and a half viewport-heights of scroll-driven stock photography in front of that
+would undo the thing the tool is for. The component's own images are a plane, a
+dog, a footballer and a basketball watch face, and its copy reads "Design That
+Responds", none of which is WLDD's archive.
+
+Where it would genuinely earn its place is a prospect-facing intro — a page BD
+sends ahead of a call, with the eight cards swapped for real campaign stills and
+the copy rewritten. That is a deliberate product decision rather than something
+to switch on quietly, so it is left wired up and ready:
+
+```tsx
+import StackSpread from '@/components/ui/stack-spread';
+
+<StackSpread
+  bgColor="#08080A"
+  textColor="#F2F2F5"
+  cardRadius={14}
+/>
+```
 
 ### FluidFieldBackground
 

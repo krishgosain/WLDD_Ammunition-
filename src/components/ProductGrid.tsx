@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Campaign, Tier } from '../lib/types';
 import ProductCard from './ProductCard';
@@ -117,7 +117,7 @@ export default function ProductGrid({
         <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
           {virtual.getVirtualItems().map((row) => (
             // The outer element owns the virtualiser's translateY. The entry
-            // animation lives on an inner element, because Framer Motion writes
+            // animation lives on an inner element, because Motion writes
             // `transform` wholesale and would otherwise erase that positioning,
             // collapsing every row onto the first one.
             <div

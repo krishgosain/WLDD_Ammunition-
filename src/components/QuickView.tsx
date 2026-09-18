@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import type { Campaign } from '../lib/types';
 import { fmt, fmtExact, fmtDate, fmtRatio, pitchLine } from '../lib/format';
 import { IconClose, IconExternal, IconCopy, IconLayers } from './Icons';

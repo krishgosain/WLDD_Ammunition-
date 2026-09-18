@@ -1,7 +1,7 @@
 import {
   useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, lazy, Suspense,
 } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import type { Campaign, Filters, SortKey, View, FacetKey } from './lib/types';
 import { EMPTY_FILTERS } from './lib/types';
 import { search, countActive, buildVocabulary } from './lib/search';

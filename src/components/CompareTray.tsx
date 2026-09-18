@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import type { Campaign } from '../lib/types';
 import { fmt, fmtDate, fmtRatio } from '../lib/format';
 import { IconClose, IconCopy } from './Icons';

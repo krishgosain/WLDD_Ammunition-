@@ -1,5 +1,5 @@
 import { useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import type { Campaign, Meta } from '../lib/types';
 import { fmt, fmtExact, fmtMonth } from '../lib/format';
 import { IconClose, IconCopy, IconExternal } from './Icons';

@@ -19,7 +19,7 @@ export default defineConfig({
           // Reach Field's whole dependency tree stays in its own lazy chunk.
           if (/node_modules\/(three|@react-three)/.test(id)) return 'three';
           if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react';
-          if (/node_modules\/framer-motion/.test(id)) return 'motion';
+          if (/node_modules\/motion(-dom|-utils)?\//.test(id)) return 'motion';
           return undefined;
         },
       },
