@@ -322,7 +322,7 @@ const clients = (() => {
 const verticals = facet((c) => (c.isVertical ? [c.industry] : []));
 const reachOf = (c) => c.reach ?? 0;
 
-/** Where the portfolio has no quotable proof. Drives the Gap Finder. */
+/** Where the portfolio has no quotable proof. Printed in the report below. */
 const GAP_BAR = 10e6;
 const gaps = verticals.map(({ value, count }) => {
   const inV = campaigns.filter((c) => c.industry === value);
@@ -357,21 +357,11 @@ const meta = {
     clients: clients.map((c) => ({ value: c.name, count: c.count })),
   },
   clients,
-  gaps,
-  gapBar: GAP_BAR,
-  health: {
-    total: campaigns.length,
-    noReport: health.noReport,
-    noFigures: health.noFigures,
-    badDate: health.badDate,
-    unclassified: health.unclassified,
-    engOverReach: health.engOverReach,
-    duplicatedFigures: health.duplicatedFigures,
-    extremeReach: health.extremeReach.sort((a, b) => b.reach - a.reach),
-    corrected: health.corrected,
-    unknownServices: [...health.unknownServices],
-  },
 };
+
+// `gaps` and the health detail are still computed, because the report below is
+// how data problems get noticed — but nothing in the app reads them, so they
+// are not shipped to the browser.
 
 // Served as static assets rather than bundled into JS: a 2MB module is parsed
 // on the main thread before anything paints, whereas a fetched JSON file is
@@ -410,5 +400,14 @@ health.extremeReach.slice(0, 5).forEach((e) =>
 if (health.unknownServices.size) {
   console.log('\n  Unmapped service codes (add to SERVICE_CANON):');
   [...health.unknownServices].forEach((s) => console.log(`      · ${s}`));
+}
+
+// The thinnest shelves: verticals with no quotable proof. Surfaced here rather
+// than in the app, so BD hears about it when the data is refreshed.
+const thin = gaps.filter((g) => g.best < GAP_BAR);
+if (thin.length) {
+  console.log(`\n  Verticals with nothing above ${GAP_BAR / 1e6}M`);
+  thin.forEach((g) => console.log(
+    `    ${g.industry.padEnd(30)}${g.count} campaigns · best ${(g.best / 1e6).toFixed(1)}M`));
 }
 console.log(`\n  → public/data/campaigns.json + meta.json\n`);

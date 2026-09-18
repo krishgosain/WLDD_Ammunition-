@@ -19,14 +19,13 @@ import QuickView from './components/QuickView';
 import CompareTray, { CompareTable } from './components/CompareTray';
 import CommandPalette from './components/CommandPalette';
 import ClientDossier from './components/ClientDossier';
-import GapFinder from './components/GapFinder';
-import DataHealth from './components/DataHealth';
 import ShortcutHelp from './components/ShortcutHelp';
 import Backdrop from './components/Backdrop';
+import Skeleton from './components/Skeleton';
 import Segmented from './components/Segmented';
 import {
   IconWarn, IconSun, IconMoon, IconFilter, IconLink, IconDownload, IconPresent, IconClose,
-  IconWaves,
+  IconWaves, IconRows, IconGrid,
 } from './components/Icons';
 import './styles/app.css';
 
@@ -73,12 +72,31 @@ export default function App() {
   }
   if (!data) {
     return (
-      <div className="app">
-        <div className="empty" style={{ height: '100%' }}>
-          <span className="mark" style={{ fontSize: 22 }}>
-            <span className="mark__dot" aria-hidden /> WLDD <em>Ammo</em>
-          </span>
-          <p>Loading the archive…</p>
+      <div className="app app--loading">
+        <Backdrop enabled />
+        <header className="topbar">
+          <div className="topbar__row">
+            <span className="mark">
+              <span className="mark__dot" aria-hidden /> WLDD <em>Ammo</em>
+            </span>
+            <div className="search">
+              <div className="search__field">
+                <span className="search__input search__input--ghost" />
+              </div>
+            </div>
+            <div className="topbar__actions" />
+          </div>
+        </header>
+        <div className="shell">
+          <div className="rail rail--ghost" aria-hidden>
+            {Array.from({ length: 7 }, (_, i) => (
+              <span className="skel__bar" key={i} style={{ width: `${52 + (i % 3) * 14}%`, height: 13 }} />
+            ))}
+          </div>
+          <main className="main">
+            <p className="count" role="status">Loading the archive…</p>
+            <Skeleton />
+          </main>
         </div>
       </div>
     );
@@ -113,6 +131,11 @@ function Ammo({ data }: { data: Dataset }) {
   const [ambient, setAmbient] = useState(
     () => localStorage.getItem('wldd-ambient') !== 'off',
   );
+  // Comfortable for browsing, compact for scanning a long result set.
+  const [density, setDensity] = useState<'comfortable' | 'compact'>(
+    () => (localStorage.getItem('wldd-density') as 'comfortable' | 'compact') ?? 'comfortable',
+  );
+  useEffect(() => { localStorage.setItem('wldd-density', density); }, [density]);
   useEffect(() => {
     localStorage.setItem('wldd-ambient', ambient ? 'on' : 'off');
   }, [ambient]);
@@ -215,12 +238,11 @@ function Ammo({ data }: { data: Dataset }) {
     { key: 'p', run: () => { setPitch((v) => { flash(v ? 'Pitch mode off' : 'Pitch mode on'); return !v; }); } },
     { key: 'g', run: () => setView('grid') },
     { key: 'f', run: () => setView('field') },
-    { key: 'a', run: () => setView('gaps') },
-    { key: 'h', run: () => setView('health') },
     { key: 't', run: () => setTheme((t) => (t === 'dark' ? 'light' : 'dark')) },
     { key: 'c', run: copyLink },
     { key: 'e', run: exportCsv },
     { key: 'r', run: reset },
+    { key: 'd', run: () => setDensity((v) => (v === 'compact' ? 'comfortable' : 'compact')) },
     { key: '?', run: () => setHelp((v) => !v) },
     {
       key: 'Escape', whileTyping: true,
@@ -327,8 +349,20 @@ function Ammo({ data }: { data: Dataset }) {
               label="View"
               value={view}
               onChange={setView}
-              options={[['grid', 'Grid'], ['field', 'Field'], ['gaps', 'Gaps'], ['health', 'Health']]}
+              options={[['grid', 'Grid'], ['field', 'Field']]}
             />
+
+            {view === 'grid' && (
+              <button
+                className="iconbtn"
+                onClick={() => setDensity((d) => (d === 'compact' ? 'comfortable' : 'compact'))}
+                aria-pressed={density === 'compact'}
+                aria-label="Toggle density"
+                title={density === 'compact' ? 'Comfortable rows' : 'Compact rows'}
+              >
+                {density === 'compact' ? <IconRows /> : <IconGrid />}
+              </button>
+            )}
 
             {view === 'grid' && (
               <select className="select" value={sort} aria-label="Sort by"
@@ -383,8 +417,9 @@ function Ammo({ data }: { data: Dataset }) {
 
           {view === 'grid' && (
             <ProductGrid
-              items={result.items} tiers={tiers} colourOf={colourOf} picked={picked} pitch={pitch}
-              onOpen={(c) => setOpenId(c.id)} onPick={togglePick}
+              items={result.items} tiers={tiers} density={density}
+              colourOf={colourOf} picked={picked} pitch={pitch}
+              onOpen={(c) => setOpenId(c.id)} onPick={togglePick} onCopy={onCopy}
               emptyPool={result.poolSize === 0} onReset={reset}
             />
           )}
@@ -393,11 +428,6 @@ function Ammo({ data }: { data: Dataset }) {
               <ReachField items={result.items} colourOf={colourOf} onPick={(c) => setOpenId(c.id)} />
             </Suspense>
           )}
-          {view === 'gaps' && (
-            <GapFinder meta={META} colourOf={colourOf}
-              onPick={(industry) => applyFacet('industries', industry)} />
-          )}
-          {view === 'health' && <DataHealth meta={META} />}
         </main>
       </div>
 

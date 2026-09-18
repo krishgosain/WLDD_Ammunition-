@@ -43,7 +43,7 @@ export function encode(s: AppState): string {
 }
 
 const SORTS: SortKey[] = ['relevance', 'reach', 'engagement', 'recent', 'oldest', 'deliverables'];
-const VIEWS: View[] = ['grid', 'field', 'gaps', 'health'];
+const VIEWS: View[] = ['grid', 'field'];
 
 export function decode(searchStr: string): AppState {
   const p = new URLSearchParams(searchStr);

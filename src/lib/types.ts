@@ -31,13 +31,6 @@ export interface Campaign {
   search: string;
 }
 
-export interface Correction {
-  label: string;
-  note: string;
-  was: { reach?: string; eng?: string };
-  now: { reach?: number; eng?: number };
-}
-
 export interface FacetValue { value: string; count: number }
 
 export interface ClientSummary {
@@ -52,15 +45,6 @@ export interface ClientSummary {
   withReport: number;
 }
 
-export interface Gap {
-  industry: string;
-  count: number;
-  best: number;
-  above: number;
-  withReport: number;
-  coverage: number;
-}
-
 export interface Meta {
   generatedAt: string;
   totals: {
@@ -73,15 +57,6 @@ export interface Meta {
     clientTypes: FacetValue[]; leads: FacetValue[]; clients: FacetValue[];
   };
   clients: ClientSummary[];
-  gaps: Gap[];
-  gapBar: number;
-  health: {
-    total: number; noReport: number; noFigures: number; badDate: number;
-    unclassified: number; engOverReach: string[]; duplicatedFigures: string[];
-    extremeReach: { label: string; reach: number; raw: string }[];
-    corrected: Correction[];
-    unknownServices: string[];
-  };
 }
 
 export type FacetKey =
@@ -113,8 +88,7 @@ export const FACET_TO_FILTER: Record<FacetKey, keyof Filters> = {
   clientTypes: 'clientTypes', statuses: 'statuses', leads: 'leads',
 };
 
-/** A typo the parser fixed on its own, always shown so it can be undone.
- *  Distinct from `Correction`, which is a figure override from the sheet. */
+/** A typo the parser fixed on its own, always shown so it can be undone. */
 export interface TypoFix {
   from: string;
   to: string;
@@ -187,4 +161,4 @@ export interface SearchResult {
 export type SortKey =
   | 'relevance' | 'reach' | 'engagement' | 'recent' | 'oldest' | 'deliverables';
 
-export type View = 'grid' | 'field' | 'gaps' | 'health';
+export type View = 'grid' | 'field';

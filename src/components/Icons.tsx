@@ -51,3 +51,9 @@ export const IconLayers = () => (
 export const IconWaves = () => (
   <svg {...S}><path d="M2 6c2.5-2 5.5-2 8 0s5.5 2 8 0M2 12c2.5-2 5.5-2 8 0s5.5 2 8 0M2 18c2.5-2 5.5-2 8 0s5.5 2 8 0" /></svg>
 );
+export const IconRows = () => (
+  <svg {...S}><path d="M3 5h18M3 12h18M3 19h18" /></svg>
+);
+export const IconGrid = () => (
+  <svg {...S}><rect x="3" y="3" width="7.5" height="7.5" rx="1.5" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" /><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" /></svg>
+);

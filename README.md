@@ -175,22 +175,46 @@ computed by this app rather than read from the sheet: past 100× it collapses to
 
 ## Views
 
-- **Grid** — virtualised cards, sorted by match, reach, engagement, deliverables or date.
+- **Grid** — virtualised cards, sorted by match, reach, engagement, deliverables
+  or date, in comfortable or compact density. Arrow keys walk it as a grid.
 - **3D Field** — every campaign as a point: x is time, y is reach on a log scale,
   z is its vertical, size is engagement, colour is department. Rendered as a
   single instanced mesh so 1,700 points stay at 60fps. It answers what the grid
   can't: *where are our proof points thin?* Falls back to a plain message where
   WebGL is unavailable.
-- **Gaps** — every vertical ranked by its single best reach figure. Anything
-  under 10M is a shelf with no headline proof. Sports, Jewellery and Edtech are
-  currently the thinnest.
-- **Health** — what the sheet is missing or contradicting.
+
+Data quality no longer has a tab. `npm run ingest` prints it instead — missing
+reports, unfiled figures, engagement above reach, confirmed corrections, and the
+verticals with nothing above 10M — so it surfaces when the sheet is refreshed,
+which is the moment anyone can act on it.
+
+## The card
+
+The card answers, top to bottom, the only four questions asked of it: who was it
+for, what was it, how big did it get, and did it beat what we promised.
+
+**The bar is magnitude, not delivery.** Delivery was the obvious thing to draw,
+and it was wrong: promises in this archive are set low and almost everything
+beats them, so every bar came out full and green and carried no information.
+Reach against the rest of the result set does carry information — it makes a
+grid scannable by size at a glance. It is a log scale, because reach spans a
+thousand-fold within one result set and a linear bar would render everything
+below the leader as an empty track. The bar takes the industry colour, so it
+doubles as the category cue. Delivery keeps its place as the label beside it,
+where green or amber still says whether the campaign beat what was sold.
+
+**Hover swaps metadata for actions.** Open the report, copy the pitch line, or
+go to details — so the common case never needs the drawer.
+
+**Compact density** drops the objective and tightens the type, fitting roughly
+four times as many campaigns on screen for scanning a long result set.
 
 ## Tests
 
 ```bash
-npm test                                      # 35 search checks
-node tests/ui-audit.mjs http://localhost:4173 # layout audit, needs a preview server
+npm test                                       # 36 search checks
+node tests/ui-audit.mjs http://localhost:4173  # layout, needs a preview server
+node tests/ui-flows.mjs http://localhost:4173  # interactions, needs a preview server
 ```
 
 `npm test` covers typo resolution, entity extraction from compound queries,
@@ -209,6 +233,12 @@ That bug shipped three times in this codebase — the compare tray, the shortcut
 sheet, and the virtualised grid, where every row collapsed onto the first and
 clicks landed on the wrong campaign.
 
+`tests/ui-flows.mjs` covers what people actually do: the magnitude bars vary,
+hover actions fire, copy confirms, density switches, arrow keys walk the grid,
+Enter opens the focused card, the shortfall banner names the real ceiling, the
+palette filters, pitch mode hides internals, the 3D field renders, the theme
+toggles, and a deep link restores the view.
+
 ## Keyboard
 
 | | |
@@ -216,7 +246,9 @@ clicks landed on the wrong campaign.
 | <kbd>/</kbd> | Focus search |
 | <kbd>⌘K</kbd> | Jump to a client, industry, service or lead |
 | <kbd>P</kbd> | Pitch mode |
-| <kbd>G</kbd> <kbd>F</kbd> <kbd>A</kbd> <kbd>H</kbd> | Grid · Field · Gaps · Health |
+| <kbd>G</kbd> <kbd>F</kbd> | Grid · 3D Field |
+| <kbd>D</kbd> | Comfortable / compact rows |
+| <kbd>↑↓←→</kbd> | Move through the grid |
 | <kbd>C</kbd> | Copy a link to this exact search |
 | <kbd>E</kbd> | Export results as CSV |
 | <kbd>T</kbd> | Light / dark |
@@ -246,7 +278,8 @@ src/lib/
   useHotkeys.ts
 src/components/             Grid, Card, QuickView, FilterRail, ReachField,
                             CompareTray, CommandPalette, ClientDossier,
-                            GapFinder, DataHealth, ShortcutHelp, Icons
+                            Backdrop, Skeleton, Segmented, ShortcutHelp, Icons
+src/components/ui/          vendored shadcn components
 src/styles/
   tokens.css                WLDD palette and type, light + dark
   app.css

@@ -19,8 +19,6 @@ const VIEWS = [
   ['typo', '/?q=finech%20influencor'],
   ['broad', '/?q=zzzq'],
   ['field', '/?view=field&ind=OTT~Movie'],
-  ['gaps', '/?view=gaps'],
-  ['health', '/?view=health'],
   ['pitch', '/?pitch=1&q=netflix'],
   ['compare', '/?cmp=c0~c18~c99'],
   ['dossier', '/?dossier=AMAZON'],

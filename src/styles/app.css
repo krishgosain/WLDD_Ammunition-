@@ -541,10 +541,6 @@ h1, h2, h3, h4, p { margin: 0; }
   -webkit-box-orient: vertical; overflow: hidden;
 }
 
-.card__figures {
-  display: flex; align-items: baseline; gap: 18px;
-  margin-top: auto; padding-top: 8px;
-}
 .figure { display: flex; flex-direction: column-reverse; gap: 2px; }
 .figure b {
   font-size: 29px; font-weight: 700; letter-spacing: -.05em; line-height: .9;
@@ -562,8 +558,9 @@ h1, h2, h3, h4, p { margin: 0; }
 }
 
 .card__foot {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 6px;
   padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--hairline);
+  min-height: 34px;
 }
 .card__pick {
   position: absolute; top: 11px; right: 11px; z-index: 2;
@@ -618,6 +615,122 @@ h1, h2, h3, h4, p { margin: 0; }
 .tier--exact   { background: var(--good-soft); color: var(--good); }
 .tier--partial { background: var(--surface-3); color: var(--muted); }
 .tier--broad   { background: var(--warn-soft); color: var(--warn); }
+
+/* The outcome block: figures, then the meter that makes them legible. */
+.card__outcome { margin-top: auto; padding-top: 8px; display: flex; flex-direction: column; gap: 9px; }
+.card__figures { display: flex; align-items: baseline; gap: 18px; }
+
+/*
+ * Magnitude bar.
+ *
+ * Length is reach relative to the rest of the result set, on a log scale, in
+ * the card's industry colour — so a grid can be scanned by size. The delivery
+ * figure sits alongside as the label, where green or amber still says whether
+ * the campaign beat what was sold.
+ */
+.meter { display: flex; align-items: center; gap: 9px; }
+.meter__track {
+  position: relative; flex: 1; height: 3px; border-radius: 99px;
+  background: var(--surface-3); overflow: hidden; min-width: 40px;
+}
+.meter__fill {
+  position: absolute; inset: 0; transform-origin: left center; border-radius: 99px;
+  background: linear-gradient(90deg,
+    color-mix(in oklab, var(--accent, var(--signal)) 35%, transparent),
+    var(--accent, var(--signal)));
+  box-shadow: 0 0 14px -3px var(--accent, var(--signal));
+}
+.meter__label {
+  font-family: var(--mono); font-size: 9.5px; font-weight: 500; letter-spacing: .04em;
+  color: var(--warn); white-space: nowrap;
+}
+.meter__label--over { color: var(--good); }
+
+/*
+ * Hover actions.
+ *
+ * The footer holds metadata at rest and the three actions people actually want
+ * on hover, so opening the drawer stays optional rather than mandatory.
+ */
+.card__foot { position: relative; }
+.card__meta {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  transition: opacity var(--fast), transform var(--fast);
+}
+.card__actions {
+  position: absolute; inset: 0; display: flex; align-items: center; gap: 6px;
+  opacity: 0; transform: translateY(5px); pointer-events: none;
+  transition: opacity var(--fast), transform var(--fast);
+}
+.card:hover .card__meta, .card:focus-within .card__meta { opacity: 0; transform: translateY(-4px); }
+.card:hover .card__actions, .card:focus-within .card__actions {
+  opacity: 1; transform: none; pointer-events: auto;
+}
+.act {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 9px; border-radius: var(--r-xs);
+  border: 1px solid var(--hairline); background: var(--surface-2);
+  font-family: var(--mono); font-size: 9.5px; font-weight: 500; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-2); text-decoration: none; white-space: nowrap;
+  transition: background var(--fast), color var(--fast), border-color var(--fast);
+}
+.act:hover { background: var(--surface-3); color: var(--ink); border-color: var(--muted); }
+.act--go {
+  margin-left: auto; background: var(--accent, var(--signal));
+  border-color: transparent; color: #0A0A0B;
+}
+.act--go:hover { background: var(--accent, var(--signal)); color: #0A0A0B; filter: brightness(1.12); }
+.act--dead { opacity: .45; pointer-events: none; }
+
+/* Compact rows: the same card with the prose dropped, for scanning. */
+.card--compact { gap: 5px; padding: 12px 13px 10px; }
+.card--compact .card__name { font-size: 14px; -webkit-line-clamp: 2; line-clamp: 2; }
+.card--compact .figure b { font-size: 22px; }
+.card--compact .figure--sm b { font-size: 14px; }
+.card--compact .card__outcome { gap: 7px; padding-top: 6px; }
+.card--compact .card__foot { padding-top: 8px; margin-top: 8px; }
+
+/* ------------------------------------------------------------------ skeleton */
+
+/*
+ * Loading state in the real grid geometry, so the page arrives in the shape it
+ * will keep and nothing jumps when the archive lands.
+ */
+.skeleton {
+  display: grid; gap: 14px; padding-bottom: 40px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+.skel {
+  display: flex; flex-direction: column; gap: 8px; height: 264px;
+  padding: 14px 15px 12px; border-radius: var(--r-lg);
+  background: var(--surface); border: 1px solid var(--hairline);
+  opacity: 0; animation: skel-in .5s var(--ease) forwards;
+}
+@keyframes skel-in { to { opacity: 1; } }
+.skel__row { display: flex; align-items: center; gap: 8px; }
+.skel__rule { flex: 1; height: 1px; background: var(--hairline); }
+.skel__figures { display: flex; gap: 16px; align-items: flex-end; margin-top: auto; }
+.skel__bar {
+  display: block; height: 9px; border-radius: 4px;
+  background: linear-gradient(90deg,
+    var(--surface-2) 20%,
+    color-mix(in oklab, var(--muted) 26%, var(--surface-3)) 42%,
+    var(--surface-2) 66%);
+  background-size: 300% 100%;
+  animation: shimmer 1.4s var(--ease-io) infinite;
+}
+.skel__bar--title { height: 14px; }
+.skel__bar--figure { height: 26px; border-radius: 5px; }
+@keyframes shimmer {
+  from { background-position: 100% 0; }
+  to   { background-position: 0 0; }
+}
+.rail--ghost { display: flex; flex-direction: column; gap: 16px; padding-top: 16px; }
+.search__input--ghost {
+  display: block; height: 42px; border-radius: var(--r);
+  background: var(--surface-2); border: 1px solid var(--hairline);
+}
+.app--loading .topbar { pointer-events: none; }
 
 /* -------------------------------------------------------------- empty state */
 
