@@ -77,7 +77,11 @@ jobs:
           git add data/campaigns.csv public/data
           git commit -m "Refresh campaign data — ${COUNT} campaigns, ${CLIENTS} clients" \
                      -m "Automated pull from the BD Ammo sheet."
-          git push
+          if ! git push; then
+            echo "::error::Push rejected. Check Settings → Actions → General →" \
+                 "Workflow permissions is set to 'Read and write permissions'."
+            exit 1
+          fi
 
       - name: Summary
         if: always()

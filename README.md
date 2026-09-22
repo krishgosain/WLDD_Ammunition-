@@ -50,25 +50,32 @@ cron ──▶ fetch-sheet.mjs ──▶ ingest.mjs ──▶ changed? ──▶
                                               └── no ──▶ stop
 ```
 
-### One-time setup
+### Setup
 
-The sheet is private, so the job needs read access. Either:
+**The sheet is link-readable, so the job needs no credentials and no secrets.**
+It runs as-is.
 
-**A service account — recommended, the sheet stays private.**
+Two repository settings have to be right, both one-time:
 
-1. In [Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts),
-   create a service account and a JSON key. Enable the Google Drive API.
-2. Share the sheet with the service account's `…@….iam.gserviceaccount.com`
-   address as **Viewer**.
-3. In the repo: Settings → Secrets and variables → Actions → New secret,
-   named `GOOGLE_SERVICE_ACCOUNT_JSON`, with the whole JSON key as the value.
+| Setting | Where | Why |
+|---|---|---|
+| Workflow permissions → **Read and write** | Settings → Actions → General | The job pushes the refreshed archive. A push rejected for this reason names the setting in the log. |
+| Vercel connected to this repo | [vercel.com/new](https://vercel.com/new) | Without it the commits land but nothing deploys. |
 
-**Or a public link — no secret, but anyone with the URL can read the sheet.**
-Set the sheet to "anyone with the link can view". The job falls back to the
-public CSV export when the secret is absent.
+`claude/elegant-faraday-kg9yrx` is the repository's default branch, which
+matters twice: scheduled workflows only ever run from the default branch, and
+Vercel picks it as the production branch on import. Neither needs changing.
 
 Then: Actions → *Refresh campaign data* → **Run workflow** to confirm it works
 before trusting the schedule.
+
+**If the sheet is ever made private again**, the job keeps working via a service
+account: create one in [Google Cloud](https://console.cloud.google.com/iam-admin/serviceaccounts)
+with the Drive API enabled, share the sheet with its
+`…@….iam.gserviceaccount.com` address as Viewer, and add the JSON key as the
+repository secret `GOOGLE_SERVICE_ACCOUNT_JSON`. `fetch-sheet.mjs` prefers the
+secret when present and falls back to the public export when it is not — no code
+change either way.
 
 ### Why it diffs the JSON, not the CSV
 
