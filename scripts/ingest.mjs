@@ -134,8 +134,14 @@ const NON_INDUSTRY = {
 
 /* --------------------------------------------------------------------- run */
 
-const csvPath = process.argv[2]
-  ? path.resolve(process.argv[2])
+// Flags and the optional CSV path share argv, so separate them before either
+// is used — otherwise `--lenient` gets resolved as a filename.
+const flags = process.argv.slice(2).filter((a) => a.startsWith('-'));
+const positional = process.argv.slice(2).filter((a) => !a.startsWith('-'));
+const lenient = flags.includes('--lenient') || process.env.INGEST_LENIENT === '1';
+
+const csvPath = positional[0]
+  ? path.resolve(positional[0])
   : path.join(ROOT, 'data', 'campaigns.csv');
 
 if (!fs.existsSync(csvPath)) {
@@ -366,13 +372,19 @@ const meta = {
 // Served as static assets rather than bundled into JS: a 2MB module is parsed
 // on the main thread before anything paints, whereas a fetched JSON file is
 // cacheable, parsed natively and downloads in parallel with the bundle.
+// A stale override is a hard error locally, because it means a correction is
+// silently doing nothing. On the daily refresh it is only a warning: the sheet
+// is the source of truth, an override that no longer matches simply does not
+// apply, and halting the pipeline over a dead entry would stop real campaign
+// updates from reaching the app.
 const stale = [...corrections.values()].filter((c) => !c.applied);
 if (stale.length) {
-  console.error('\n  Corrections in data/corrections.json match no row:');
-  stale.forEach((c) => console.error(`    · ${c.client} — ${c.campaign}`));
-  console.error('  Either the campaign was renamed in the sheet, or the fix has');
-  console.error('  landed at source and the entry should be deleted.\n');
-  process.exit(1);
+  const say = lenient ? console.warn : console.error;
+  say(`\n  ${lenient ? 'WARNING: ' : ''}Corrections in data/corrections.json match no row:`);
+  stale.forEach((c) => say(`    · ${c.client} — ${c.campaign}`));
+  say('  Either the campaign was renamed in the sheet, or the fix has');
+  say('  landed at source and the entry should be deleted.\n');
+  if (!lenient) process.exit(1);
 }
 
 const out = path.join(ROOT, 'public', 'data');

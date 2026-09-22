@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "fetch": "node scripts/fetch-sheet.mjs",
+    "refresh": "npm run fetch && npm run ingest",
     "ingest": "node scripts/ingest.mjs",
     "predev": "npm run ingest",
     "dev": "vite",

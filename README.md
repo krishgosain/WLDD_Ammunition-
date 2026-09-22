@@ -29,8 +29,85 @@ already declares the framework, build command, output directory, SPA rewrite
 and cache headers. No environment variables are needed; the dataset is
 committed.
 
-To refresh the data later: export the BD Ammo sheet to `data/campaigns.csv`,
-run `npm run ingest`, commit. Every push redeploys.
+Every push redeploys. Data refreshes itself — see below.
+
+---
+
+## Daily refresh
+
+The BD Ammo sheet
+([17Zw3Rj…](https://docs.google.com/spreadsheets/d/17Zw3Rj0hv26vz7mApLB5hiKiY__5liO4tKF3VqGUaPQ/edit))
+updates every day. `.github/workflows/refresh-data.yml` pulls it at 03:30 UTC
+(09:00 IST), normalises it, and pushes only when the archive actually changed.
+Vercel redeploys on that push.
+
+**No model is in the loop.** That is the point: a scheduled job costs nothing to
+run and never forgets. Asking an assistant to do it each morning would cost
+tokens every day and stop the moment nobody asked.
+
+```
+cron ──▶ fetch-sheet.mjs ──▶ ingest.mjs ──▶ changed? ──▶ commit ──▶ Vercel
+                                              └── no ──▶ stop
+```
+
+### One-time setup
+
+The sheet is private, so the job needs read access. Either:
+
+**A service account — recommended, the sheet stays private.**
+
+1. In [Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts),
+   create a service account and a JSON key. Enable the Google Drive API.
+2. Share the sheet with the service account's `…@….iam.gserviceaccount.com`
+   address as **Viewer**.
+3. In the repo: Settings → Secrets and variables → Actions → New secret,
+   named `GOOGLE_SERVICE_ACCOUNT_JSON`, with the whole JSON key as the value.
+
+**Or a public link — no secret, but anyone with the URL can read the sheet.**
+Set the sheet to "anyone with the link can view". The job falls back to the
+public CSV export when the secret is absent.
+
+Then: Actions → *Refresh campaign data* → **Run workflow** to confirm it works
+before trusting the schedule.
+
+### Why it diffs the JSON, not the CSV
+
+Google re-serialises date cells on every export — `2/8/2025` one day,
+`02/08/2025` the next, same date. Between two real exports five days apart that
+churn touched **458 rows** while the data underneath was unchanged. Committing
+the raw CSV would mean a few hundred lines of noise and a pointless deploy every
+single morning.
+
+Ingest parses both spellings to the same ISO date, so the normalised JSON is
+stable. The workflow commits on a diff of `public/data`, never the CSV.
+
+`tests/ingest-stability.mjs` holds that invariant: it flips the padding on every
+date cell, re-ingests, and requires byte-identical output — then edits one
+figure and requires the output to change. If the first breaks the workflow
+commits noise daily; if the second breaks it silently skips real updates.
+
+### Safety rails
+
+`scripts/fetch-sheet.mjs` refuses to overwrite the archive when the download
+does not look right, because Google answers an unauthorised export with a
+sign-in **page**, not an error:
+
+- HTML instead of CSV → stop
+- no `Industry,Client,Campaign Name` header → stop
+- fewer than 500 rows → stop
+- row count down more than 10% → stop, unless re-run with `FORCE=1`
+
+A stale entry in `data/corrections.json` fails the build locally but only warns
+during the refresh (`--lenient`): the sheet is the source of truth, an override
+that no longer matches simply does not apply, and a dead entry must not stop
+real campaign updates from reaching the app.
+
+### By hand
+
+```bash
+npm run refresh     # fetch + ingest
+npm run fetch       # fetch only
+```
 
 ---
 
@@ -212,7 +289,7 @@ four times as many campaigns on screen for scanning a long result set.
 ## Tests
 
 ```bash
-npm test                                       # 36 search checks
+npm test                                       # 36 search + 2 stability checks
 node tests/ui-audit.mjs http://localhost:4173  # layout, needs a preview server
 node tests/ui-flows.mjs http://localhost:4173  # interactions, needs a preview server
 ```
@@ -263,8 +340,10 @@ doesn't toggle pitch mode.
 ## Structure
 
 ```
-data/campaigns.csv          source export, committed
+.github/workflows/          daily refresh from the sheet
+data/campaigns.csv          source export, refreshed by the workflow
 data/corrections.json       hand-confirmed figure overrides
+scripts/fetch-sheet.mjs     sheet → CSV, with validation rails
 scripts/ingest.mjs          CSV → JSON + data-quality report
 public/data/                generated; fetched at runtime, never hand-edited
 src/lib/

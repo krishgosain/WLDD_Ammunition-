@@ -16,3 +16,6 @@ try {
 } finally {
   fs.rmSync(path.dirname(out), { recursive: true, force: true });
 }
+
+// Plain JS, so it runs directly rather than through the bundler.
+execFileSync(process.execPath, ['tests/ingest-stability.mjs'], { stdio: 'inherit' });

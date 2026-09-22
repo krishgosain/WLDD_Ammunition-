@@ -1,0 +1,97 @@
+# Pulls the BD Ammo sheet every morning and redeploys only when the archive
+# actually changed.
+#
+# No model is involved: this is the whole update loop, and it costs nothing to
+# run. Doing it by hand, or by asking an assistant each day, would cost tokens
+# every day forever and would stop the moment nobody remembered.
+name: Refresh campaign data
+
+on:
+  schedule:
+    # 03:30 UTC = 09:00 IST, after the sheet's own overnight update.
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Accept a large drop in row count'
+        type: boolean
+        default: false
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Pull the sheet
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          FORCE: ${{ inputs.force && '1' || '' }}
+        run: node scripts/fetch-sheet.mjs
+
+      - name: Normalise
+        run: node scripts/ingest.mjs --lenient | tee ingest.log
+
+      - name: Decide whether anything really changed
+        id: diff
+        run: |
+          # Compare the normalised JSON, never the raw CSV. Google re-serialises
+          # dates on every export — 2/8/2025 one day, 02/08/2025 the next — so
+          # the CSV churns by hundreds of lines while the data is identical.
+          # Ingest parses both to the same ISO date, so the JSON is stable.
+          if git diff --quiet -- public/data; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify before publishing
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          # The build re-runs ingest. Keep it lenient here for the same reason
+          # the refresh step is: a dead override must not stop real updates.
+          INGEST_LENIENT: '1'
+        run: npm run build
+
+      - name: Commit
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          COUNT=$(node -p "require('./public/data/meta.json').totals.campaigns")
+          CLIENTS=$(node -p "require('./public/data/meta.json').totals.clients")
+          git add data/campaigns.csv public/data
+          git commit -m "Refresh campaign data — ${COUNT} campaigns, ${CLIENTS} clients" \
+                     -m "Automated pull from the BD Ammo sheet."
+          git push
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Campaign data refresh"
+            echo
+            if [ "${{ steps.diff.outputs.changed }}" = "true" ]; then
+              echo "Archive updated and pushed — Vercel will redeploy."
+            else
+              echo "No change in the normalised archive. Nothing committed."
+            fi
+            echo
+            echo '```'
+            sed -n '1,40p' ingest.log 2>/dev/null || echo "(ingest produced no log)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
