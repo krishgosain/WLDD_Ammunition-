@@ -26,8 +26,9 @@ const OUT = path.join(ROOT, 'public', 'data', 'campaigns.json');
 const DATE_COLS = ['Approved At', 'Start Date', 'End Date'];
 
 let failed = 0;
+let passed = 0;
 const check = (name, fn) => {
-  try { fn(); console.log(`  ok   ${name}`); }
+  try { fn(); console.log(`  ok   ${name}`); passed++; }
   catch (e) { console.log(`  FAIL ${name}\n       ${e.message}`); failed++; }
 };
 
@@ -88,9 +89,30 @@ check('a real row change is still detected', () => {
   }
 });
 
+check('the change gate ignores the daily timestamp', () => {
+  // The workflow gates on campaigns.json alone. meta.json carries generatedAt,
+  // which differs on every run, so including it would commit and redeploy every
+  // morning regardless of the data. This pins both halves of that: the campaign
+  // file must carry no wall-clock field, and meta must be the only file that does.
+  ingest(SRC);
+  const campaigns = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+  const stamped = Object.keys(campaigns[0])
+    .filter((k) => /generat|fetched|stamp|ranAt|updatedAt/i.test(k));
+  if (stamped.length) {
+    throw new Error(`campaigns.json carries a run timestamp (${stamped.join(', ')}) — `
+      + 'the gate would fire every day');
+  }
+  const meta = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'public', 'data', 'meta.json'), 'utf8'));
+  if (!meta.generatedAt) {
+    throw new Error('meta.generatedAt is gone; the workflow comment explaining '
+      + 'why the gate excludes meta.json is now misleading');
+  }
+});
+
 // Leave the committed data as it was found.
 ingest(SRC);
 fs.rmSync(tmp, { recursive: true, force: true });
 
 if (failed) { console.log(`\n${failed} stability check(s) failed`); process.exit(1); }
-console.log('  2 passed');
+console.log(`  ${passed} passed`);

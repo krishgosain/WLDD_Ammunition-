@@ -8,8 +8,10 @@ name: Refresh campaign data
 
 on:
   schedule:
-    # 03:30 UTC = 09:00 IST, after the sheet's own overnight update.
-    - cron: '30 3 * * *'
+    # 04:17 UTC = 09:47 IST, after the sheet's own overnight update.
+    # Deliberately not on the hour or half-hour: GitHub's scheduler is most
+    # contended there and delays runs, sometimes by tens of minutes.
+    - cron: '17 4 * * *'
   workflow_dispatch:
     inputs:
       force:
@@ -49,11 +51,18 @@ jobs:
       - name: Decide whether anything really changed
         id: diff
         run: |
-          # Compare the normalised JSON, never the raw CSV. Google re-serialises
-          # dates on every export — 2/8/2025 one day, 02/08/2025 the next — so
-          # the CSV churns by hundreds of lines while the data is identical.
-          # Ingest parses both to the same ISO date, so the JSON is stable.
-          if git diff --quiet -- public/data; then
+          # Compare campaigns.json, and only campaigns.json.
+          #
+          # Not the raw CSV: Google re-serialises dates on every export —
+          # 2/8/2025 one day, 02/08/2025 the next — so the CSV churns by
+          # hundreds of lines while the data is identical.
+          #
+          # Not meta.json either: it carries generatedAt, today's date, which
+          # differs on every run by definition. Including it would commit and
+          # redeploy every morning whether or not a single campaign changed.
+          # meta is derived entirely from campaigns.json apart from that stamp,
+          # so campaigns.json alone is the honest test of "did the data change".
+          if git diff --quiet -- public/data/campaigns.json; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
