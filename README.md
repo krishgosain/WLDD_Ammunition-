@@ -33,6 +33,21 @@ Every push redeploys. Data refreshes itself — see below.
 
 ---
 
+### Routing and caching
+
+`vercel.json` rewrites only paths that do not name a file
+(`/((?!.*\.).*)`). The obvious SPA rule — everything except `/assets/` — also
+swallows `/data/campaigns.json`, and whether that still reaches the file depends
+on Vercel checking the filesystem before applying rewrites. It does, but the
+archive loading at all should not rest on that: if the order ever changed the
+site would hang on "Loading the archive…" with no error anywhere.
+
+`/data/*` is served `max-age=0, must-revalidate`. The archive sits at a fixed,
+unhashed path and is replaced every morning, so a browser that cached it would
+keep showing yesterday's campaigns. Revalidation costs nothing — an unchanged
+file answers 304 with no body. Hashed assets under `/assets/` keep the immutable
+year-long cache.
+
 ## Daily refresh
 
 The BD Ammo sheet
