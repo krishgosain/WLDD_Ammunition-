@@ -11,13 +11,16 @@ import { IconClose, IconCopy, IconExternal } from './Icons';
  * gets asked, and answering it by scrolling a filtered grid loses the shape of
  * the relationship — how long, how big, which services, trending up or down.
  */
+const SPARK = ['#E9A23B', '#2F9E6E', '#1C96A2', '#7B61D9', '#3B5BDB', '#D4508F', '#EE7B30'];
+
 export default function ClientDossier({
-  name, all, meta, pitch, onClose, onOpen, onCopy, onFilter,
+  name, all, meta, pitch, colourOf, onClose, onOpen, onCopy, onFilter,
 }: {
   name: string;
   all: Campaign[];
   meta: Meta;
   pitch: boolean;
+  colourOf: (c: Campaign) => string;
   onClose: () => void;
   onOpen: (c: Campaign) => void;
   onCopy: (text: string, label: string) => void;
@@ -64,16 +67,24 @@ export default function ClientDossier({
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
       <motion.aside
         className="pane" role="dialog" aria-modal="true" aria-label={`${name} dossier`}
-        style={{ width: 'min(720px, 100vw)' }}
+        style={{ width: 'min(760px, 100vw)' }}
         initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 34, stiffness: 340 }}
       >
         <header className="pane__head">
           <div style={{ minWidth: 0, flex: 1 }}>
-            <span className="card__client">Client dossier</span>
+            <span className="pane__kicker">Client dossier</span>
             <h2 className="pane__title">{name}</h2>
             <div className="tags">
-              {summary.industries.map((i) => <span className="pill" key={i}>{i}</span>)}
+              {summary.industries.map((i) => {
+                const sample = items.find((c) => c.industry === i);
+                return (
+                  <span className="pill pill--dept" key={i}
+                    style={sample ? { ['--accent' as string]: colourOf(sample) } : undefined}>
+                    <span className="pill__dot" />{i}
+                  </span>
+                );
+              })}
               <span className="pill">{fmtMonth(summary.first)} – {fmtMonth(summary.last)}</span>
             </div>
           </div>
@@ -83,7 +94,7 @@ export default function ClientDossier({
         <div className="pane__body">
           <div className="statstrip">
             <div><b className="num">{summary.count}</b><i>Campaigns</i></div>
-            <div><b className="num" style={{ color: 'var(--figure)' }}>{fmt(summary.reach)}</b><i>Total reach</i></div>
+            <div><b className="num">{fmt(summary.reach)}</b><i>Total reach</i></div>
             <div><b className="num">{fmt(summary.eng)}</b><i>Total engagement</i></div>
             <div><b className="num">{summary.withReport}</b><i>Reports filed</i></div>
           </div>
@@ -93,8 +104,15 @@ export default function ClientDossier({
               <h4>Reach by quarter</h4>
               <div className="sparkrow" role="img"
                 aria-label={`Reach by quarter from ${spark[0].q} to ${spark[spark.length - 1].q}`}>
-                {spark.map((s) => (
-                  <span key={s.q} style={{ height: `${s.h}%` }} title={`${s.q}: ${fmt(s.v)}`} />
+                {spark.map((s, i) => (
+                  <span className="sparkrow__col" key={s.q} title={`${s.q}: ${fmt(s.v)}`}>
+                    <span className="sparkrow__v num">{fmt(s.v)}</span>
+                    <span className="sparkrow__bar" style={{
+                      height: `${s.h}%`,
+                      background: s.h === 100 ? 'var(--wldd-red)' : SPARK[i % SPARK.length],
+                    }} />
+                    <span className="sparkrow__q">{s.q}</span>
+                  </span>
                 ))}
               </div>
               <p className="hint" style={{ marginTop: 6 }}>
@@ -127,7 +145,7 @@ export default function ClientDossier({
                     <td className="num" style={{ color: 'var(--figure)', fontWeight: 600 }}>{fmt(c.reach)}</td>
                     <td className="num">{fmt(c.eng)}</td>
                     <td>{c.date ? fmtMonth(c.date) : '—'}</td>
-                    {!pitch && <td>{c.status}</td>}
+                    {!pitch && <td><span className={c.status === 'Active' ? 'pill pill--live' : 'pill'}>{c.status}</span></td>}
                     <td>
                       {c.report && (
                         <a href={c.report} target="_blank" rel="noopener noreferrer"

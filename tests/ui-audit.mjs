@@ -26,7 +26,9 @@ const VIEWS = [
 ];
 const SIZES = [[1600, 1000], [1280, 860], [900, 800], [390, 844]];
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium',
+  // behind an HTTPS proxy (sandboxed CI), route the font request through it
+  ...(process.env.HTTPS_PROXY ? { proxy: { server: process.env.HTTPS_PROXY, bypass: 'localhost,127.0.0.1' }, args: ['--ignore-certificate-errors'] } : {}) });
 
 for (const [w, h] of SIZES) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });

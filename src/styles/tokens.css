@@ -1,115 +1,117 @@
 /*
- * WLDD design tokens.
+ * WLDD design tokens — "Departures".
  *
- * Palette and display type are lifted from wldd.in's own stylesheet so this
- * reads as WLDD property rather than a generic dashboard:
- *   #131313 ink · #FF3427 red · #FFD644 yellow · #8580F7 violet
- *   #DF29B1 magenta · #5271FF blue · #F97D92 pink · #077E37 green
- *   Bricolage Grotesque
+ * Warm sand ground, deep espresso ink, cream paper surfaces, and five
+ * earthy-bright accents (tomato, saffron, jade, cobalt, plum) used where they
+ * carry meaning: departments, industries, the kit. Colour is never decoration
+ * for its own sake.
  *
- * The second voice is JetBrains Mono. Every label, count, id and unit is set in
- * it — that single split is what stops a data tool reading as a form. Display
- * type carries the meaning, mono carries the machinery.
+ * Two voices. Anton — a condensed poster face — carries headlines, names and
+ * every figure that gets said out loud on a call. Sora carries everything else.
  *
- * Dark is the default because the brand site is black-first. Light is a full
- * peer, not an afterthought.
+ * Beige is the default theme. Dark ("espresso") is a full peer.
  */
 
 :root {
   /* brand constants — identical in both themes */
-  --wldd-red:      #FF3427;
-  --wldd-yellow:   #FFD644;
-  --wldd-gold:     #F3BE00;
-  --wldd-violet:   #8580F7;
-  --wldd-magenta:  #DF29B1;
-  --wldd-blue:     #5271FF;
-  --wldd-pink:     #F97D92;
-  --wldd-green:    #2ED47A;
-  --wldd-ink:      #131313;
-  --wldd-paper:    #F5F5F5;
+  --wldd-red:     #E4572E;
+  --wldd-yellow:  #E9A23B;
+  --wldd-violet:  #7B61D9;
+  --wldd-blue:    #3B5BDB;
+  --wldd-green:   #2F9E6E;
+  --wldd-pink:    #E06C8A;
+  --wldd-teal:    #1C96A2;
 
-  /* dark surfaces — a tight stack, so hairlines do the separating */
-  --bg:        #08080A;
-  --bg-deep:   #030306;
-  --surface:   #0E0E12;
-  --surface-2: #141419;
-  --surface-3: #1C1C23;
-  --line:      #24242E;
-  --line-soft: #17171D;
-  --hairline:  #FFFFFF14;
+  --bg:        #EEE6D8;
+  --bg-deep:   #E6DCCA;
+  --surface:   #F8F3EA;
+  --surface-2: #EFE7D9;
+  --surface-3: #E6DCCB;
+  --paper:     #FFFCF6;
+  --line:      rgba(31, 26, 20, .12);
+  --line-soft: rgba(31, 26, 20, .07);
+  --hairline:  rgba(31, 26, 20, .08);
 
-  --ink:    #F2F2F5;
-  --ink-2:  #A8A8B8;
-  --muted:  #6E6E80;
-  --faint:  #4A4A5A;
+  --ink:    #1F1A14;
+  --ink-2:  #4A3F33;
+  --muted:  #776A57;
+  --faint:  #9A8D78;
+
+  /* the dark slab: kit bar, flip digits, primary buttons */
+  --slab:     #1F1A14;
+  --slab-ink: #F8F3EA;
+  --slab-muted: #B8AB97;
 
   --signal:      var(--wldd-red);
-  --signal-ink:  #FFFFFF;
-  --signal-soft: #24100F;
-  --figure:      var(--wldd-yellow);
+  --signal-ink:  #FFF8EF;
+  --signal-soft: #F6DED3;
+  --figure:      var(--ink);
 
-  --good:      var(--wldd-green);
-  --good-soft: #0A2618;
-  --warn:      var(--wldd-gold);
-  --warn-soft: #251F0D;
+  --good:      #24855C;
+  --good-soft: #DCEBDF;
+  --warn:      #B8730E;
+  --warn-soft: #F5E6C8;
 
-  /* the light that makes a surface look lit from above */
-  --edge-top: linear-gradient(180deg, #FFFFFF18, transparent 42%);
-  --glow:     0 0 0 1px var(--hairline), 0 1px 0 0 #FFFFFF0A inset;
+  --lift: 0 1px 0 rgba(255, 255, 255, .85) inset, 0 16px 34px -26px rgba(31, 26, 20, .5);
+  --glow: 0 0 0 1px var(--hairline);
 
-  --r-xs: 5px;
-  --r-sm: 8px;
-  --r:    11px;
-  --r-lg: 15px;
-  --r-xl: 22px;
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r:    18px;
+  --r-lg: 24px;
+  --r-xl: 32px;
+  --pill: 999px;
 
-  --shadow-1: 0 1px 2px rgb(0 0 0 / .5);
-  --shadow-2: 0 10px 34px -10px rgb(0 0 0 / .75);
-  --shadow-3: 0 34px 80px -22px rgb(0 0 0 / .85);
+  --shadow-1: 0 1px 2px rgba(31, 26, 20, .08);
+  --shadow-2: 0 14px 34px -18px rgba(31, 26, 20, .4);
+  --shadow-3: 0 40px 90px -36px rgba(31, 26, 20, .55);
 
   /* one easing family, so everything moves like it belongs together */
-  --ease:   cubic-bezier(.22, 1, .36, 1);
+  --ease:    cubic-bezier(.16, 1, .3, 1);
   --ease-io: cubic-bezier(.65, 0, .35, 1);
-  --fast: .15s var(--ease);
-  --med:  .3s var(--ease);
-  --slow: .5s var(--ease);
+  --fast: .2s var(--ease);
+  --med:  .35s var(--ease);
+  --slow: .6s var(--ease);
 
-  --rail: 262px;
-  --font: 'Bricolage Grotesque', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
-
-  color-scheme: dark;
-}
-
-:root[data-theme='light'] {
-  --bg:        #F2F2F4;
-  --bg-deep:   #E6E6EA;
-  --surface:   #FFFFFF;
-  --surface-2: #F7F7F9;
-  --surface-3: #EDEDF1;
-  --line:      #DEDEE5;
-  --line-soft: #EBEBF0;
-  --hairline:  #13131310;
-
-  --ink:    #0E0E12;
-  --ink-2:  #3A3A46;
-  --muted:  #6B6B7A;
-  --faint:  #9A9AAA;
-
-  --signal-soft: #FFEDEB;
-  --figure:      #8A6A00;
-
-  --good:      #077E37;
-  --good-soft: #E2F5EA;
-  --warn:      #8A6A00;
-  --warn-soft: #FDF3D8;
-
-  --edge-top: linear-gradient(180deg, #FFFFFF, transparent 42%);
-  --glow:     0 0 0 1px var(--hairline);
-
-  --shadow-1: 0 1px 2px rgb(19 19 19 / .06);
-  --shadow-2: 0 10px 34px -12px rgb(19 19 19 / .16);
-  --shadow-3: 0 34px 80px -24px rgb(19 19 19 / .24);
+  --rail: 292px;
+  --font:    'Sora', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --display: 'Anton', Impact, 'Arial Narrow', sans-serif;
+  --mono:    var(--font);
 
   color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg:        #17130F;
+  --bg-deep:   #110E0B;
+  --surface:   #221C16;
+  --surface-2: #2A231C;
+  --surface-3: #352C23;
+  --paper:     #2C251E;
+  --line:      rgba(243, 236, 224, .12);
+  --line-soft: rgba(243, 236, 224, .06);
+  --hairline:  rgba(243, 236, 224, .08);
+
+  --ink:    #F3ECE0;
+  --ink-2:  #D6CBBA;
+  --muted:  #A3957F;
+  --faint:  #7D705E;
+
+  --slab:     #F3ECE0;
+  --slab-ink: #1F1A14;
+  --slab-muted: #6E6253;
+
+  --signal-soft: #3A2219;
+  --good:      #4CC28B;
+  --good-soft: #1A2D23;
+  --warn:      #E9A23B;
+  --warn-soft: #33270F;
+
+  --lift: 0 1px 0 rgba(255, 255, 255, .04) inset, 0 16px 34px -26px rgba(0, 0, 0, .8);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-2: 0 14px 34px -18px rgba(0, 0, 0, .7);
+  --shadow-3: 0 40px 90px -36px rgba(0, 0, 0, .85);
+
+  color-scheme: dark;
 }

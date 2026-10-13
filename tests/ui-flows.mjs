@@ -10,7 +10,9 @@ import { chromium } from 'playwright';
 
 const B = process.argv[2] || 'http://localhost:4173';
 const fails = []; const errs = [];
-const b = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium' });
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium',
+  // behind an HTTPS proxy (sandboxed CI), route the font request through it
+  ...(process.env.HTTPS_PROXY ? { proxy: { server: process.env.HTTPS_PROXY, bypass: 'localhost,127.0.0.1' }, args: ['--ignore-certificate-errors'] } : {}) });
 const p = await b.newPage({ viewport:{width:1500,height:940} });
 p.on('pageerror', e=>{ if(!/THREE is not defined/.test(e.message)) errs.push(e.message); });
 p.on('console', m=>{ if(m.type()==='error' && !/CERT_AUTHORITY|Failed to load resource/.test(m.text())) errs.push(m.text()); });
@@ -21,22 +23,22 @@ await p.goto(B,{waitUntil:'networkidle'}); await p.waitForSelector('.card'); awa
 
 await step('gaps and health are gone', async()=>{
   const views = await p.locator('.segmented button').allInnerTexts();
-  A(views.join()==='GRID,FIELD', 'switcher shows '+views.join());
+  A(views.join().toUpperCase()==='BOARD,FIELD', 'switcher shows '+views.join());
   await p.goto(B+'/?view=gaps',{waitUntil:'networkidle'});
   await p.waitForSelector('.card',{timeout:10000});
   A(await p.locator('.table').count()===0, 'a gaps table still rendered');
-  A(await p.locator('.segmented button[aria-pressed="true"]').innerText()==='GRID','bad view did not fall back to grid');
+  A(await p.locator('.segmented button[aria-pressed="true"]').innerText().then(t=>t.toUpperCase())==='BOARD','bad view did not fall back to the board');
 });
 
-await step('magnitude bars vary across a result set', async()=>{
+await step('reach figures vary across a result set', async()=>{
   await p.goto(B,{waitUntil:'networkidle'}); await p.waitForSelector('.card'); await p.waitForTimeout(1800);
-  const widths = await p.locator('.meter__fill').evaluateAll(els=>els.map(e=>{
-    const m=/matrix\(([\d.]+)/.exec(getComputedStyle(e).transform); return m?+m[1]:1;
-  }));
-  A(widths.length>4,'not enough meters: '+widths.length);
-  const uniq = new Set(widths.map(w=>w.toFixed(2)));
-  A(uniq.size>3, 'bars barely vary: '+JSON.stringify([...uniq]));
-  console.log('       '+widths.length+' bars, '+uniq.size+' distinct lengths');
+  const figs = await p.locator('.card__fig--reach b').allInnerTexts();
+  A(figs.length>4,'not enough reach figures: '+figs.length);
+  const uniq = new Set(figs);
+  A(uniq.size>3, 'figures barely vary: '+JSON.stringify([...uniq]));
+  const sizes = new Set(await p.locator('.card__fig--reach b').evaluateAll(els=>els.map(e=>getComputedStyle(e).fontSize)));
+  A(sizes.size===1, 'reach figures use more than one size: '+[...sizes]);
+  console.log('       '+figs.length+' figures, '+uniq.size+' distinct, one size');
 });
 
 await step('hover actions appear and are clickable', async()=>{
@@ -129,7 +131,7 @@ await step('3D field renders', async()=>{
 await step('theme toggles', async()=>{
   await p.evaluate(()=>document.activeElement&&document.activeElement.blur());
   await p.keyboard.press('t'); await p.waitForTimeout(500);
-  A(await p.getAttribute('html','data-theme')==='light','theme did not switch');
+  A(await p.getAttribute('html','data-theme')==='dark','theme did not switch');
   await p.keyboard.press('t'); await p.waitForTimeout(400);
 });
 

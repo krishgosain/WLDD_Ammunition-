@@ -113,9 +113,18 @@ export const DEPARTMENTS: { label: string; industries: string[] }[] = [
 
 /** Stable colour index per industry, shared by cards, charts and the 3D field. */
 export const SERIES = [
-  '#FF3427', '#8580F7', '#FFD644', '#DF29B1', '#5271FF',
-  '#2ED47A', '#F97D92', '#00C2CC', '#FF8A3D', '#B388FF',
+  '#E4572E', '#7B61D9', '#E9A23B', '#D4508F', '#3B5BDB',
+  '#2F9E6E', '#E06C8A', '#1C96A2', '#EE7B30', '#9A73D6',
 ];
+
+/** Colour for campaigns whose Industry column was not a vertical. */
+export const UNCLASSIFIED_COLOUR = '#9C9180';
+
+/** One colour per department, so the department row reads as a palette. */
+export const DEPARTMENT_COLOURS: Record<string, string> = {
+  'Entertainment': '#E4572E', 'Commerce': '#7B61D9', 'Technology': '#EE7B30',
+  'Money & Learning': '#E9A23B', 'Lifestyle': '#2F9E6E', 'Movement': '#3B5BDB',
+};
 
 const hueCache = new Map<string, string>();
 export function industryColour(industry: string, all: string[]): string {
