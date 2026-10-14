@@ -263,7 +263,7 @@ replaced.
 — when a campaign is renamed, or the fix lands in the sheet itself, the build
 tells you to delete the entry instead of letting a dead override rot unnoticed.
 
-Four figures are currently corrected (the four that previously read above two
+Five figures are currently corrected (the five that previously read above two
 billion). Removing them is a one-line delete each once the sheet is fixed.
 
 The one derived figure that *is* clamped is the "% of target" label, which is
