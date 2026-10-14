@@ -1002,6 +1002,7 @@ h1, h2, h3, h4, p { margin: 0; }
 .onepage__figs b { font-size: 64px; line-height: 1; }
 .onepage__eng b { font-size: 32px; opacity: .85; }
 .onepage__figs i { font-style: normal; font-size: 13px; font-weight: 600; }
+.onepage__url { display: none; margin-top: 6px; font-size: 9px; opacity: .75; overflow-wrap: anywhere; }
 .onepage__report {
   align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; margin-top: 18px;
   height: 40px; padding: 0 16px; border-radius: 999px; background: #FFF8EF; color: #1F1A14;
@@ -1020,8 +1021,12 @@ h1, h2, h3, h4, p { margin: 0; }
 
 /* Download PDF prints the client page alone. */
 @media print {
-  @page { margin: 10mm; }
+  /* Zero page margin: browsers only print their own title/URL/date header and
+     footer inside the margin, so with none there is nowhere for them to go. */
+  @page { margin: 0; }
   html, body { background: #fff !important; }
+  .onepage { padding: 12mm !important; }
+  .onepage__url { display: block; }
   .app > :not(.onepager) { display: none !important; }
   .onepager { position: static; overflow: visible; background: #fff; }
   .onepager__bar, .builder, .preview__label { display: none !important; }

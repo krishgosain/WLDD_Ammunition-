@@ -4,6 +4,9 @@ import type { Campaign } from '../lib/types';
 import { fmt, fmtMonth } from '../lib/format';
 import { IconArrowLeft, IconExternal, IconLink, IconPrint } from './Icons';
 
+/** Drive file links open most reliably at their /view URL. */
+const reportUrl = (url: string) => url.replace(/^(https:\/\/drive\.google\.com\/file\/d\/[\w-]+)\/?$/, '$1/view');
+
 const ACCENTS = ['#E4572E', '#7B61D9', '#2F9E6E', '#E9A23B', '#1C96A2'];
 
 /**
@@ -46,6 +49,15 @@ export default function OnePager({
     ? `${kinds.slice(0, -1).join(', ')} and ${kinds[kinds.length - 1]}`
     : kinds[0] ?? '';
   const today = fmtMonth(new Date().toISOString().slice(0, 10));
+
+  // The page title becomes the PDF's file name, so name it for the client
+  // rather than the app; restore it once the print dialog closes.
+  const download = () => {
+    const prev = document.title;
+    document.title = preparedFor.trim() ? `WLDD for ${preparedFor.trim()}` : 'WLDD';
+    window.addEventListener('afterprint', () => { document.title = prev; }, { once: true });
+    window.print();
+  };
 
   const clientLink = () => {
     const p = new URLSearchParams({ pitch: '1', cmp: chosen.map((c) => c.id).join('~') });
@@ -127,7 +139,7 @@ export default function OnePager({
           </section>
 
           <div className="builder__actions">
-            <button className="btn btn--ghost" onClick={() => window.print()} disabled={!chosen.length}>
+            <button className="btn btn--ghost" onClick={download} disabled={!chosen.length}>
               <IconPrint /> Download PDF
             </button>
             <button className="btn" disabled={!chosen.length}
@@ -171,9 +183,13 @@ export default function OnePager({
                         {showEng && c.eng !== null && <span className="onepage__eng"><b className={c.eng == null ? "num num--none" : "num"}>{fmt(c.eng)}</b><i>engagement</i></span>}
                       </div>
                       {showReport && c.report && (
-                        <a className="onepage__report" href={c.report} target="_blank" rel="noopener noreferrer">
-                          View the report <IconExternal />
-                        </a>
+                        <>
+                          <a className="onepage__report" href={reportUrl(c.report)} target="_blank" rel="noopener noreferrer">
+                            View the report <IconExternal />
+                          </a>
+                          {/* printed under the button, for PDF viewers that drop links */}
+                          <span className="onepage__url">{reportUrl(c.report)}</span>
+                        </>
                       )}
                     </div>
                   ))}
