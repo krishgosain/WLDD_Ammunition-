@@ -57,3 +57,12 @@ export const IconRows = () => (
 export const IconGrid = () => (
   <svg {...S}><rect x="3" y="3" width="7.5" height="7.5" rx="1.5" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" /><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" /></svg>
 );
+export const IconArrow = () => (
+  <svg {...S}><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+);
+export const IconArrowLeft = () => (
+  <svg {...S}><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+);
+export const IconPrint = () => (
+  <svg {...S}><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="7" rx="1" /></svg>
+);

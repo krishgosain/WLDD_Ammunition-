@@ -5,8 +5,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 const FluidFieldBackground = lazy(() => import('@/components/ui/fluid-field'));
 
 /**
- * The layers behind everything: live shader field, film grain, drafting grid,
- * vignette.
+ * The layers behind everything: live shader field, soft colour glows, grain.
  *
  * The field is decoration with a real cost — a continuous WebGL loop — so it is
  * deferred past first paint, dropped entirely when the viewer prefers reduced
@@ -54,9 +53,14 @@ export default function Backdrop({ enabled }: { enabled: boolean }) {
           </div>
         </Suspense>
       )}
+      {enabled && (
+        <div className="backdrop__glows">
+          <span className="glow glow--red" />
+          <span className="glow glow--violet" />
+          <span className="glow glow--teal" />
+        </div>
+      )}
       <div className="backdrop__grain" />
-      <div className="backdrop__grid" />
-      <div className="backdrop__vignette" />
     </div>
   );
 }

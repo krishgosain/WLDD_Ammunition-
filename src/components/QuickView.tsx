@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import type { Campaign } from '../lib/types';
-import { fmt, fmtExact, fmtDate, fmtRatio, pitchLine } from '../lib/format';
+import { fmt, fmtExact, fmtDate, fmtRatio, fmtVerdict, pitchLine } from '../lib/format';
 import { IconClose, IconExternal, IconCopy, IconLayers } from './Icons';
 
 /**
@@ -32,11 +32,17 @@ export default function QuickView({
     return () => {
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
-      prev?.focus();
+      prev?.focus({ preventScroll: true });
     };
   }, [onClose]);
 
   const reachRatio = fmtRatio(c.reachRatio);
+  const verdict = fmtVerdict(c.reachRatio);
+  // Promise and delivery drawn on one scale, so "how much more" is a length.
+  const scale = Math.max(c.reach ?? 0, c.promisedReach ?? 0);
+  const promisedPct = scale && c.promisedReach ? Math.max(2, (c.promisedReach / scale) * 100) : 0;
+  const deliveredPct = scale && c.reach ? Math.max(2, (c.reach / scale) * 100) : 0;
+  const line = pitchLine(c);
 
   return (
     <>
@@ -45,23 +51,22 @@ export default function QuickView({
       <motion.aside
         ref={paneRef} className="pane" role="dialog" aria-modal="true" tabIndex={-1}
         aria-label={`${c.client} — ${c.name}`}
+        style={{ ['--accent' as string]: colour }}
         initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 34, stiffness: 340 }}
       >
         <header className="pane__head">
           <div style={{ minWidth: 0, flex: 1 }}>
-            <button className="card__client" style={{ textDecoration: 'underline', textUnderlineOffset: 3 }}
-              onClick={() => onClient(c.client)}>
-              {c.client}
-            </button>
-            <h2 className="pane__title">{c.name}</h2>
             <div className="tags">
-              {c.isVertical && (
-                <span className="pill pill--dept" style={{ ['--accent' as string]: colour }}>{c.industry}</span>
-              )}
+              <button className="chip chip--slab" onClick={() => onClient(c.client)}
+                title={`Open the ${c.client} dossier`}>
+                {c.client} <span aria-hidden>›</span>
+              </button>
+              {c.isVertical && <span className="pill pill--dept"><span className="pill__dot" />{c.industry}</span>}
               {!pitch && <span className="pill">{c.status}</span>}
               <span className="pill">{fmtDate(c.date)}</span>
             </div>
+            <h2 className="pane__title">{c.name}</h2>
           </div>
           <button className="pane__close" onClick={onClose} aria-label="Close"><IconClose /></button>
         </header>
@@ -77,28 +82,46 @@ export default function QuickView({
           <section className="sec">
             <h4>Performance</h4>
             <div className="metrics">
-              <div>
-                <b className="num" style={{ color: 'var(--figure)' }}>{fmt(c.reach)}</b>
-                <i>Reach delivered</i>
+              <div className="metric metric--slab">
+                <b className={c.reach == null ? "num num--none" : "num"}>{fmt(c.reach)}</b><i>Reach delivered</i>
               </div>
-              <div><b className="num">{fmt(c.eng)}</b><i>Engagement delivered</i></div>
+              <div className="metric">
+                <b className={c.eng == null ? "num num--none" : "num"}>{fmt(c.eng)}</b><i>Engagement delivered</i>
+              </div>
               {!pitch && (
                 <>
-                  <div><b className="num">{fmt(c.promisedReach)}</b><i>Reach promised</i></div>
-                  <div><b className="num">{fmt(c.promisedEng)}</b><i>Engagement promised</i></div>
+                  <div className="metric metric--sm"><b className={c.promisedReach == null ? "num num--none" : "num"}>{fmt(c.promisedReach)}</b><i>Reach promised</i></div>
+                  <div className="metric metric--sm"><b className={c.promisedEng == null ? "num num--none" : "num"}>{fmt(c.promisedEng)}</b><i>Engagement promised</i></div>
                 </>
               )}
             </div>
             {c.reach !== null && (
-              <p className="hint" style={{ marginTop: 8 }}>
+              <p className="hint">
                 Exact: {fmtExact(c.reach)} reach
                 {c.eng !== null && <> · {fmtExact(c.eng)} engagement</>}
               </p>
             )}
-            {!pitch && reachRatio && (
-              <p className={reachRatio.over ? 'ratio ratio--over' : 'ratio'}>
-                Reach delivered {reachRatio.label}
-              </p>
+            {!pitch && reachRatio && verdict && (
+              <div className="promise" role="img"
+                aria-label={`Reach delivered ${reachRatio.label}: ${fmt(c.promisedReach)} promised, ${fmt(c.reach)} delivered`}>
+                <div className="promise__head">
+                  <span>Reach delivered against the promise</span>
+                  <b className={verdict.over ? 'verdict verdict--over' : 'verdict'}>{verdict.label}</b>
+                </div>
+                <div className="promise__row">
+                  <span className="promise__label">Promised</span>
+                  <span className="promise__bar promise__bar--promised" style={{ width: `${promisedPct}%` }} />
+                  <span className="promise__fig num">{fmt(c.promisedReach)}</span>
+                </div>
+                <div className="promise__row">
+                  <span className="promise__label">Delivered</span>
+                  <span className="promise__bar" style={{ width: `${deliveredPct}%` }} />
+                  <span className="promise__fig num">{fmt(c.reach)}</span>
+                </div>
+                <p className={reachRatio.over ? 'ratio ratio--over' : 'ratio'}>
+                  Reach delivered {reachRatio.label}
+                </p>
+              </div>
             )}
           </section>
 
@@ -112,15 +135,15 @@ export default function QuickView({
           <section className="sec">
             <h4>Scope</h4>
             <div className="metrics">
-              <div><b className="num">{c.deliverables ? fmtExact(c.deliverables) : '—'}</b><i>Deliverables</i></div>
-              <div>
+              <div className="metric metric--sm"><b className={c.deliverables ? "num" : "num num--none"}>{c.deliverables ? fmtExact(c.deliverables) : "—"}</b><i>Deliverables</i></div>
+              <div className="metric metric--sm">
                 <b className="metrics__text">{c.endDate ? fmtDate(c.endDate) : '—'}</b>
                 <i>Wrapped</i>
               </div>
               {!pitch && (
                 <>
-                  <div><b className="metrics__text">{c.lead}</b><i>Campaign lead</i></div>
-                  <div><b className="metrics__text">{c.clientType}</b><i>Counterparty</i></div>
+                  <div className="metric metric--sm"><b className="metrics__text">{c.lead}</b><i>Campaign lead</i></div>
+                  <div className="metric metric--sm"><b className="metrics__text">{c.clientType}</b><i>Counterparty</i></div>
                 </>
               )}
             </div>
@@ -129,7 +152,7 @@ export default function QuickView({
           <section className="sec">
             <h4>Case study</h4>
             {c.report ? (
-              <a className="btn" href={c.report} target="_blank" rel="noopener noreferrer">
+              <a className="btn btn--slab" href={c.report} target="_blank" rel="noopener noreferrer">
                 Open the report <IconExternal />
               </a>
             ) : (
@@ -140,14 +163,19 @@ export default function QuickView({
               </p>
             )}
           </section>
+
+          <section className="sec pitchline">
+            <h4>Pitch line</h4>
+            <p>{line}</p>
+          </section>
         </div>
 
         <footer className="pane__foot">
           <button className="btn btn--ghost btn--wide"
-            onClick={() => onCopy(pitchLine(c), 'Pitch line copied')}>
+            onClick={() => onCopy(line, 'Pitch line copied')}>
             <IconCopy /> Copy pitch line
           </button>
-          <button className={inCompare ? 'btn btn--wide' : 'btn btn--ghost btn--wide'}
+          <button className={inCompare ? 'btn btn--slab btn--wide' : 'btn btn--wide'}
             onClick={() => onPick(c)}>
             <IconLayers /> {inCompare ? 'In compare' : 'Compare'}
           </button>

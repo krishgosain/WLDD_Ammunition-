@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Query } from '../lib/types';
 import { fmt } from '../lib/format';
-import { IconSearch, IconClose } from './Icons';
+import { IconSearch, IconClose, IconArrow } from './Icons';
 
 const EXAMPLES = [
   'cosmetic brand with 30M+ reach',
@@ -28,13 +28,15 @@ export interface Chip {
  * query is the other half.
  */
 export default function SearchBar({
-  value, onChange, query, resultCount, inputRef,
+  value, onChange, query, resultCount, inputRef, onSubmit,
 }: {
   value: string;
   onChange: (v: string) => void;
   query: Query;
   resultCount: number;
   inputRef: React.RefObject<HTMLInputElement>;
+  /** Search runs as you type; Enter or the button takes you to the board. */
+  onSubmit: () => void;
 }) {
   const idx = useRef(Math.floor(Math.random() * EXAMPLES.length));
   useEffect(() => { idx.current = Math.floor(Math.random() * EXAMPLES.length); }, []);
@@ -105,6 +107,7 @@ export default function SearchBar({
         spellCheck={false}
         aria-label="Search campaigns"
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onSubmit(); } }}
       />
       <div className="search__tail">
         {value && <span className="search__count num">{resultCount}</span>}
@@ -118,6 +121,10 @@ export default function SearchBar({
             <IconClose />
           </button>
         )}
+        {!value && <span className="search__key" aria-hidden>/</span>}
+        <button type="button" className="search__go" onClick={onSubmit}>
+          Search <IconArrow />
+        </button>
       </div>
       </div>
       <span className="sr-only" role="status" aria-live="polite">
@@ -126,6 +133,7 @@ export default function SearchBar({
 
       {(chips.length > 0 || q.corrections.length > 0 || didYouMean.length > 0) && (
         <div className="intent" aria-label="How this search was read">
+          <span className="intent__label" aria-hidden>Read as</span>
           {q.corrections.map((c) => (
             <button
               key={`fix:${c.from}`}
@@ -144,6 +152,7 @@ export default function SearchBar({
               key={c.key}
               type="button"
               className="intent__chip"
+              data-kind={c.key.split(':')[0]}
               title={`Remove ${c.label} ${c.value}`}
               onClick={c.drop}
             >

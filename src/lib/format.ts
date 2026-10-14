@@ -46,6 +46,18 @@ export function fmtRatio(r: number | null): { label: string; over: boolean } | n
   return { label: `${Math.round(r * 100)}% of target`, over: r >= 1 };
 }
 
+/**
+ * The short form of the same figure, for the board: "↑ 5.5×" when a campaign
+ * beat its promise, "↓ 70%" when it fell short. A percentage only appears when
+ * it is below 100, where it is the honest way to say how far short.
+ */
+export function fmtVerdict(r: number | null): { label: string; over: boolean } | null {
+  if (r === null || !Number.isFinite(r) || r < 0) return null;
+  if (r >= RATIO_CEILING) return { label: `↑ ${RATIO_CEILING}×+`, over: true };
+  if (r >= 1) return { label: `↑ ${(Math.round(r * 10) / 10).toString()}×`, over: true };
+  return { label: `↓ ${Math.round(r * 100)}%`, over: false };
+}
+
 /** Parses what a person types into a reach box: "10M", "1.5 cr", "500k". */
 export function parseInput(raw: string): number | null {
   const t = raw.trim().replace(/,/g, '');

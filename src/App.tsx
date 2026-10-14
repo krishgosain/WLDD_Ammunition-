@@ -6,7 +6,9 @@ import type { Campaign, Filters, SortKey, View, FacetKey } from './lib/types';
 import { EMPTY_FILTERS } from './lib/types';
 import { search, countActive, buildVocabulary } from './lib/search';
 import { fmt } from './lib/format';
-import { DEPARTMENTS, industryColour } from './lib/taxonomy';
+import {
+  DEPARTMENTS, DEPARTMENT_COLOURS, UNCLASSIFIED_COLOUR, industryColour,
+} from './lib/taxonomy';
 import { decode, encode } from './lib/url';
 import { useHotkeys } from './lib/useHotkeys';
 import { toCsv, download, digestOf, copy } from './lib/export';
@@ -20,20 +22,40 @@ import CompareTray, { CompareTable } from './components/CompareTray';
 import CommandPalette from './components/CommandPalette';
 import ClientDossier from './components/ClientDossier';
 import ShortcutHelp from './components/ShortcutHelp';
+import OnePager from './components/OnePager';
 import Backdrop from './components/Backdrop';
 import Skeleton from './components/Skeleton';
 import Segmented from './components/Segmented';
+import LiveCount from './components/LiveCount';
+import Ticker from './components/Ticker';
 import {
-  IconWarn, IconSun, IconMoon, IconFilter, IconLink, IconDownload, IconPresent, IconClose,
+  IconWarn, IconSun, IconMoon, IconFilter, IconLink, IconPresent, IconClose,
   IconWaves, IconRows, IconGrid,
 } from './components/Icons';
 import './styles/app.css';
 
-// three.js is ~700kB; the grid must paint without it.
+// three.js is ~700kB; the board must paint without it.
 const ReachField = lazy(() => import('./components/ReachField'));
 
 const MAX_COMPARE = 4;
+const THEME_KEY = 'wldd-theme-v2';
 const initial = decode(location.search);
+
+type Theme = 'light' | 'dark';
+const storedTheme = (): Theme =>
+  (localStorage.getItem(THEME_KEY) as Theme | null) ?? 'light';
+
+/** The four brand shapes beside the headline. Pure decoration. */
+function Shapes() {
+  return (
+    <div className="hero__shapes" aria-hidden>
+      <span className="shape shape--circle" />
+      <span className="shape shape--leaf" />
+      <span className="shape shape--square" />
+      <span className="shape shape--drop" />
+    </div>
+  );
+}
 
 /**
  * Loading gate. The archive is a fetch, so the shell renders a brand-correct
@@ -55,14 +77,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const t = (localStorage.getItem('wldd-theme') as 'dark' | 'light') ?? 'dark';
-    document.documentElement.dataset.theme = t;
+    document.documentElement.dataset.theme = storedTheme();
   }, []);
 
   if (error) {
     return (
       <div className="app">
-        <div className="empty" style={{ height: '100%' }}>
+        <div className="empty" style={{ minHeight: '100vh' }}>
           <h3>The archive did not load</h3>
           <p>{error}</p>
           <button onClick={() => location.reload()}>Try again</button>
@@ -73,20 +94,22 @@ export default function App() {
   if (!data) {
     return (
       <div className="app app--loading">
-        <Backdrop enabled />
         <header className="topbar">
           <div className="topbar__row">
-            <span className="mark">
-              <span className="mark__dot" aria-hidden /> WLDD <em>Ammo</em>
-            </span>
-            <div className="search">
-              <div className="search__field">
-                <span className="search__input search__input--ghost" />
-              </div>
-            </div>
-            <div className="topbar__actions" />
+            <span className="mark"><span className="mark__word">WLDD</span> <em>Ammo</em></span>
           </div>
         </header>
+        <section className="hero">
+          <div className="hero__row">
+            <h1 className="hero__title">Watch our <span>magic</span></h1>
+            <Shapes />
+          </div>
+          <div className="search">
+            <div className="search__field">
+              <span className="search__input search__input--ghost" />
+            </div>
+          </div>
+        </section>
         <div className="shell">
           <div className="rail rail--ghost" aria-hidden>
             {Array.from({ length: 7 }, (_, i) => (
@@ -119,14 +142,13 @@ function Ammo({ data }: { data: Dataset }) {
   const [dossier, setDossier] = useState<string | null>(initial.client);
   const [compare, setCompare] = useState<string[]>(initial.compare);
   const [showCompare, setShowCompare] = useState(false);
+  const [onePager, setOnePager] = useState(false);
   const [cmdk, setCmdk] = useState(false);
   const [help, setHelp] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [theme, setTheme] = useState<'dark' | 'light'>(
-    () => (localStorage.getItem('wldd-theme') as 'dark' | 'light') ?? 'dark',
-  );
-  // The shader field is the one piece of pure decoration here, so it is a
+  const [theme, setTheme] = useState<Theme>(storedTheme);
+  // The ambient glow is the one piece of pure decoration here, so it is a
   // preference rather than a fact of the interface.
   const [ambient, setAmbient] = useState(
     () => localStorage.getItem('wldd-ambient') !== 'off',
@@ -142,9 +164,10 @@ function Ammo({ data }: { data: Dataset }) {
 
   const searchRef = useRef<HTMLInputElement>(null);
   const topbarRef = useRef<HTMLElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
 
-  // The topbar grows when the intent row has chips in it, so the sticky filter
-  // rail has to track its real height rather than assume one.
+  // The sticky rail sits under the sticky topbar, so it has to track the
+  // topbar's real height rather than assume one.
   useEffect(() => {
     const el = topbarRef.current;
     if (!el) return;
@@ -158,10 +181,10 @@ function Ammo({ data }: { data: Dataset }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem('wldd-theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
-  // Deferring keeps typing at 60fps while the 1,700-row pass runs behind it.
+  // Deferring keeps typing at 60fps while the 2,000-row pass runs behind it.
   const deferredQuery = useDeferredValue(query);
   const result = useMemo(
     () => search(ALL, deferredQuery, filters, sort, vocab),
@@ -194,14 +217,14 @@ function Ammo({ data }: { data: Dataset }) {
   }, [flash]);
 
   const colourOf = useCallback(
-    (c: Campaign) => (c.isVertical ? industryColour(c.industry, INDUSTRIES) : '#55556E'),
+    (c: Campaign) => (c.isVertical ? industryColour(c.industry, INDUSTRIES) : UNCLASSIFIED_COLOUR),
     [INDUSTRIES],
   );
 
   const togglePick = useCallback((c: Campaign) => {
     setCompare((cur) => {
       if (cur.includes(c.id)) return cur.filter((id) => id !== c.id);
-      if (cur.length >= MAX_COMPARE) { flash(`Compare holds ${MAX_COMPARE}`); return cur; }
+      if (cur.length >= MAX_COMPARE) { flash(`The kit holds ${MAX_COMPARE}`); return cur; }
       return [...cur, c.id];
     });
   }, [flash]);
@@ -230,7 +253,11 @@ function Ammo({ data }: { data: Dataset }) {
     flash(await copy(text) ? label : 'Could not copy');
   }, [flash]);
 
-  const anyOverlay = Boolean(openId || dossier || cmdk || help || showCompare);
+  const toBoard = useCallback(() => {
+    boardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const anyOverlay = Boolean(openId || dossier || cmdk || help || showCompare || onePager);
 
   useHotkeys([
     { key: 'k', meta: true, whileTyping: true, run: () => setCmdk((v) => !v) },
@@ -249,12 +276,13 @@ function Ammo({ data }: { data: Dataset }) {
       run: () => {
         if (cmdk) setCmdk(false);
         else if (help) setHelp(false);
+        else if (onePager) setOnePager(false);
         else if (showCompare) setShowCompare(false);
         else if (railOpen) setRailOpen(false);
         else searchRef.current?.blur();
       },
     },
-  ], [copyLink, exportCsv, reset, flash, cmdk, help, showCompare, railOpen]);
+  ], [copyLink, exportCsv, reset, flash, cmdk, help, showCompare, onePager, railOpen]);
 
   const active = countActive(filters);
   const open = openId ? BY_ID.get(openId) ?? null : null;
@@ -271,51 +299,56 @@ function Ammo({ data }: { data: Dataset }) {
       <header className="topbar" ref={topbarRef}>
         <div className="topbar__row">
           <a className="mark" href={location.pathname} aria-label="WLDD Ammo — home">
-            <span className="mark__dot" aria-hidden />
-            WLDD <em>Ammo</em>
+            <span className="mark__word">WLDD</span> <em>Ammo</em>
           </a>
-
-          <SearchBar
-            value={query} onChange={setQuery} query={result.query}
-            resultCount={result.items.length} inputRef={searchRef}
-          />
-
+          <div className="topbar__spacer" />
+          <LiveCount total={META.totals.campaigns} syncedAt={META.generatedAt} />
           <div className="topbar__actions">
             <button className="iconbtn railtoggle" onClick={() => setRailOpen((v) => !v)}
               aria-label="Filters" aria-expanded={railOpen}>
               <IconFilter />{active > 0 && <span className="num">{active}</span>}
             </button>
-            <button className="iconbtn" onClick={() => setCmdk(true)} aria-label="Jump to">
-              Jump <span className="kbd">⌘K</span>
-            </button>
-            <button className={pitch ? 'iconbtn iconbtn--on' : 'iconbtn'}
+            <button className={pitch ? 'iconbtn iconbtn--pitch iconbtn--on' : 'iconbtn iconbtn--pitch'}
               onClick={() => setPitch((v) => !v)} aria-pressed={pitch}
               title="Hide internal columns so the screen can face a client">
-              <IconPresent /> Pitch
+              <IconPresent /> {pitch ? 'Pitch on' : 'Pitch'}
             </button>
-            <button className="iconbtn" onClick={copyLink} aria-label="Copy link to this search"><IconLink /></button>
-            <button className="iconbtn" onClick={exportCsv} aria-label="Export results as CSV"><IconDownload /></button>
-            <button className={ambient ? 'iconbtn' : 'iconbtn iconbtn--off'}
+            <button className="iconbtn iconbtn--round" onClick={copyLink} aria-label="Copy link to this search"><IconLink /></button>
+            <button className={ambient ? 'iconbtn iconbtn--round' : 'iconbtn iconbtn--round iconbtn--off'}
               onClick={() => setAmbient((v) => !v)} aria-pressed={ambient}
               aria-label="Toggle the ambient field" title="Ambient field">
               <IconWaves />
             </button>
-            <button className="iconbtn" onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            <button className="iconbtn iconbtn--round" onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
               aria-label="Toggle theme">{theme === 'dark' ? <IconSun /> : <IconMoon />}</button>
-            <button className="iconbtn" onClick={() => setHelp(true)} aria-label="Keyboard shortcuts">?</button>
+            <button className="iconbtn iconbtn--round" onClick={() => setHelp(true)} aria-label="Keyboard shortcuts">?</button>
           </div>
         </div>
+      </header>
+
+      <section className="hero">
+        <div className="hero__row">
+          <h1 className="hero__title">Watch our <span>magic</span></h1>
+          <Shapes />
+        </div>
+
+        <SearchBar
+          value={query} onChange={setQuery} query={result.query}
+          resultCount={result.items.length} inputRef={searchRef} onSubmit={toBoard}
+        />
 
         <nav className="depts" aria-label="Departments">
           {DEPARTMENTS.map((d) => {
             const on = d.industries.some((i) => filters.industries.includes(i));
             return (
               <button key={d.label} className={on ? 'dept dept--on' : 'dept'} aria-pressed={on}
+                style={{ ['--accent' as string]: DEPARTMENT_COLOURS[d.label] }}
                 onClick={() => patch({
                   industries: on
                     ? filters.industries.filter((i) => !d.industries.includes(i))
                     : [...new Set([...filters.industries, ...d.industries])],
                 })}>
+                <span className="dept__dot" aria-hidden />
                 {d.label}
               </button>
             );
@@ -324,9 +357,11 @@ function Ammo({ data }: { data: Dataset }) {
             <button className="dept dept--clear" onClick={reset}>Clear {active}</button>
           )}
         </nav>
-      </header>
+      </section>
 
-      <div className="shell">
+      <Ticker items={result.items} colourOf={colourOf} />
+
+      <div className="shell" ref={boardRef}>
         <FilterRail
           all={ALL} meta={META} query={result.query} filters={filters}
           pitch={pitch} open={railOpen} onPatch={patch} onReset={reset}
@@ -334,6 +369,7 @@ function Ammo({ data }: { data: Dataset }) {
 
         <main className="main">
           <div className="toolbar">
+            <h2 className="board__title">Departures</h2>
             <p className="count">
               {result.items.length
                 ? <><strong className="num">{result.items.length}</strong>{' '}
@@ -349,18 +385,19 @@ function Ammo({ data }: { data: Dataset }) {
               label="View"
               value={view}
               onChange={setView}
-              options={[['grid', 'Grid'], ['field', 'Field']]}
+              options={[['grid', 'Board'], ['field', 'Field']]}
             />
 
             {view === 'grid' && (
               <button
-                className="iconbtn"
+                className="iconbtn iconbtn--soft"
                 onClick={() => setDensity((d) => (d === 'compact' ? 'comfortable' : 'compact'))}
                 aria-pressed={density === 'compact'}
                 aria-label="Toggle density"
                 title={density === 'compact' ? 'Comfortable rows' : 'Compact rows'}
               >
                 {density === 'compact' ? <IconRows /> : <IconGrid />}
+                {density === 'compact' ? 'Compact' : 'Comfortable'}
               </button>
             )}
 
@@ -409,7 +446,7 @@ function Ammo({ data }: { data: Dataset }) {
                   No campaign matches all of that.
                 </p>
                 <p className="shortfall__body">
-                  Showing {result.items.length} that match part of it — each card says which.
+                  Showing {result.items.length} that match part of it — each row says which.
                 </p>
               </div>
             </div>
@@ -436,12 +473,14 @@ function Ammo({ data }: { data: Dataset }) {
       )}
 
       <AnimatePresence>
-        {compareItems.length > 0 && (
+        {compareItems.length > 0 && !onePager && (
           <CompareTray
             items={compareItems}
+            colourOf={colourOf}
             onRemove={(id) => setCompare((c) => c.filter((x) => x !== id))}
             onClear={() => setCompare([])}
             onOpen={() => setShowCompare(true)}
+            onBuild={() => setOnePager(true)}
             onCopy={() => onCopy(digestOf(compareItems), 'Copied')}
           />
         )}
@@ -463,6 +502,7 @@ function Ammo({ data }: { data: Dataset }) {
         {dossier && (
           <ClientDossier
             key={dossier} name={dossier} all={ALL} meta={META} pitch={pitch}
+            colourOf={colourOf}
             onClose={() => setDossier(null)} onOpen={(c) => { setDossier(null); setOpenId(c.id); }}
             onCopy={onCopy} onFilter={(name) => applyFacet('clients', name)}
           />
@@ -474,24 +514,34 @@ function Ammo({ data }: { data: Dataset }) {
           <>
             <motion.div className="scrim" onClick={() => setShowCompare(false)}
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
-            <motion.aside className="pane" role="dialog" aria-modal="true" aria-label="Compare campaigns"
-              style={{ width: 'min(880px, 100vw)' }}
+            <motion.aside className="pane pane--wide" role="dialog" aria-modal="true" aria-label="Compare campaigns"
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 34, stiffness: 340 }}>
               <header className="pane__head">
                 <div style={{ flex: 1 }}>
-                  <span className="card__client">Side by side</span>
+                  <span className="pane__kicker">Side by side</span>
                   <h2 className="pane__title">{compareItems.length} campaigns</h2>
                 </div>
+                <button className="btn btn--ghost" onClick={() => onCopy(digestOf(compareItems), 'Copied')}>Copy</button>
+                <button className="btn" onClick={() => { setShowCompare(false); setOnePager(true); }}>Build one-pager</button>
                 <button className="pane__close" onClick={() => setShowCompare(false)} aria-label="Close">
                   <IconClose />
                 </button>
               </header>
               <div className="pane__body">
-                <CompareTable items={compareItems} pitch={pitch} />
+                <CompareTable items={compareItems} pitch={pitch} colourOf={colourOf} />
               </div>
             </motion.aside>
           </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {onePager && (
+          <OnePager
+            items={compareItems} colourOf={colourOf}
+            onClose={() => setOnePager(false)} onCopy={onCopy}
+          />
         )}
       </AnimatePresence>
 

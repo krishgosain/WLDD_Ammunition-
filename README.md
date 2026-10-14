@@ -274,11 +274,12 @@ computed by this app rather than read from the sheet: past 100× it collapses to
 
 ## Views
 
-- **Grid** — virtualised cards, sorted by match, reach, engagement, deliverables
-  or date, in comfortable or compact density. Arrow keys walk it as a grid.
+- **Board** — "Departures": a virtualised list of rows, sorted by match, reach,
+  engagement, deliverables or date, in comfortable or compact density. Arrow keys
+  walk it. Below 760px of board width each row stacks into a card.
 - **3D Field** — every campaign as a point: x is time, y is reach on a log scale,
   z is its vertical, size is engagement, colour is department. Rendered as a
-  single instanced mesh so 1,700 points stay at 60fps. It answers what the grid
+  single instanced mesh so 1,700 points stay at 60fps. It answers what the board
   can't: *where are our proof points thin?* Falls back to a plain message where
   WebGL is unavailable.
 
@@ -292,15 +293,11 @@ which is the moment anyone can act on it.
 The card answers, top to bottom, the only four questions asked of it: who was it
 for, what was it, how big did it get, and did it beat what we promised.
 
-**The bar is magnitude, not delivery.** Delivery was the obvious thing to draw,
-and it was wrong: promises in this archive are set low and almost everything
-beats them, so every bar came out full and green and carried no information.
-Reach against the rest of the result set does carry information — it makes a
-grid scannable by size at a glance. It is a log scale, because reach spans a
-thousand-fold within one result set and a linear bar would render everything
-below the leader as an empty track. The bar takes the industry colour, so it
-doubles as the category cue. Delivery keeps its place as the label beside it,
-where green or amber still says whether the campaign beat what was sold.
+**One size for every reach figure.** Reach is the largest thing on a row and is
+set at a single size down the whole board, so figures compare by their digits
+rather than by a bar. Earlier versions drew a magnitude bar and a "% of promised"
+label; both were dropped. Delivery against the promise survives as a short
+verdict (`↑ 5.5×`, `↓ 70%`) that pitch mode hides.
 
 **Hover swaps metadata for actions.** Open the report, copy the pitch line, or
 go to details — so the common case never needs the drawer.
@@ -332,7 +329,7 @@ That bug shipped three times in this codebase — the compare tray, the shortcut
 sheet, and the virtualised grid, where every row collapsed onto the first and
 clicks landed on the wrong campaign.
 
-`tests/ui-flows.mjs` covers what people actually do: the magnitude bars vary,
+`tests/ui-flows.mjs` covers what people actually do: reach figures vary and share one size,
 hover actions fire, copy confirms, density switches, arrow keys walk the grid,
 Enter opens the focused card, the shortfall banner names the real ceiling, the
 palette filters, pitch mode hides internals, the 3D field renders, the theme
@@ -345,9 +342,9 @@ toggles, and a deep link restores the view.
 | <kbd>/</kbd> | Focus search |
 | <kbd>⌘K</kbd> | Jump to a client, industry, service or lead |
 | <kbd>P</kbd> | Pitch mode |
-| <kbd>G</kbd> <kbd>F</kbd> | Grid · 3D Field |
+| <kbd>G</kbd> <kbd>F</kbd> | Board · 3D Field |
 | <kbd>D</kbd> | Comfortable / compact rows |
-| <kbd>↑↓←→</kbd> | Move through the grid |
+| <kbd>↑↓←→</kbd> | Move through the board |
 | <kbd>C</kbd> | Copy a link to this exact search |
 | <kbd>E</kbd> | Export results as CSV |
 | <kbd>T</kbd> | Light / dark |
@@ -498,36 +495,36 @@ tool whose whole point is opening fast mid-pitch. So the backdrop:
 - puts it behind a **user toggle** that persists
 - hue-rotates it off the shader's native blue onto WLDD violet-magenta
 
-If the CDN is blocked or offline the iframe renders flat and the grain, grid
-and vignette layers carry the backdrop on their own.
+If the CDN is blocked or offline the iframe renders flat and the warm glows
+and grain carry the backdrop on their own.
 
 ## Design
 
-Palette and display type are taken from wldd.in's own stylesheet so this reads
-as WLDD property rather than a generic dashboard: `#131313` ink, `#FF3427` red,
-`#FFD644` yellow, `#8580F7` violet, `#DF29B1` magenta, set in Bricolage
-Grotesque. Dark is the default because the brand site is black-first; light is a
-full peer.
+"Departures": a warm beige ground (`#EEE6D8`), espresso ink (`#1F1A14`) and cream
+paper surfaces, with tomato, saffron, violet, jade, cobalt, pink and teal accents
+used only where they carry meaning — departments, industries, the pitch kit.
+Beige is the default; espresso dark is a full peer (<kbd>T</kbd>).
 
-**Two voices.** Display type carries meaning; JetBrains Mono carries the
-machinery — every label, count, id, unit and tag. That single split is what
-stops a data tool reading as a form.
+**Two voices.** Anton, a condensed poster face, carries headlines, client names
+and every figure that gets said out loud on a call. Sora carries everything else.
 
-**Steep hierarchy.** The reach figure is the largest thing on a card because it
-is the number that gets said out loud on a call. The client, the index and the
-services sit small and mono at the edges. Everything else stays quiet.
+**No boxes.** Rows sit on one soft sheet with no rules between them; hover tints
+the row in its department colour and slides the actions over the description.
+Filters are rounded cards in the rail, the pitch kit is a dark dock at the
+bottom, and the detail pane floats.
 
-**Colour as index.** Each card carries its industry colour as `--accent`, which
-drives the client label, a bleed behind the card and the hover glow — so a
-filtered grid reads as one hue and a mixed grid reads as a spectrum.
+**The count is live, not the hero.** The campaign total sits in the top corner as
+flip digits read from the sheet-synced archive, with the time of the last sync.
+The page leads with "Watch our magic" and the search.
 
-**Depth without chrome.** Surfaces are separated by hairlines and a top-edge
-highlight rather than borders and shadows, over a backdrop of live shader,
-film grain, a drafting grid and a vignette.
+**Build one-pager.** From the pitch kit, lay the chosen campaigns out as a
+client-facing page — prepared-for line, campaign toggles, accent colour, your
+details — then download it as a PDF (print stylesheet) or copy a client link
+that opens the app in pitch mode with exactly those campaigns.
 
-**Motion with intent.** Rows stagger in as results change, cards lift on a
-spring, and the view switcher's active pill is one shared element that slides
-between options rather than two that blink.
+**Motion with intent.** Rows stagger in as results change, a ticker of the
+biggest results runs under the hero, and the view switcher's active pill is one
+shared element that slides between options.
 
 Colour never carries meaning on its own, focus rings are visible throughout,
 and `prefers-reduced-motion` stops every idle animation including the shader.
@@ -543,6 +540,6 @@ and `prefers-reduced-motion` stops every idle animation including the shader.
 ## Roadmap
 
 - [ ] Budget — decks don't carry spend; needs a join against the finance sheet
-- [ ] Self-hosted Bricolage Grotesque, to drop the render-blocking font request
+- [ ] Self-hosted Anton and Sora, to drop the render-blocking font request
 - [ ] Admin queue — resolve the Health findings in-app and write corrections back to the sheet
 - [ ] Saved searches per user
