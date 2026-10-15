@@ -540,6 +540,5 @@ and `prefers-reduced-motion` stops every idle animation including the shader.
 ## Roadmap
 
 - [ ] Budget — decks don't carry spend; needs a join against the finance sheet
-- [ ] Self-hosted Anton and Sora, to drop the render-blocking font request
 - [ ] Admin queue — resolve the Health findings in-app and write corrections back to the sheet
 - [ ] Saved searches per user

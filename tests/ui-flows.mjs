@@ -12,7 +12,7 @@ const B = process.argv[2] || 'http://localhost:4173';
 const fails = []; const errs = [];
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium',
   // behind an HTTPS proxy (sandboxed CI), route the font request through it
-  ...(process.env.HTTPS_PROXY ? { proxy: { server: process.env.HTTPS_PROXY, bypass: 'localhost,127.0.0.1' }, args: ['--ignore-certificate-errors'] } : {}) });
+  ...(process.env.HTTPS_PROXY ? { proxy: { server: process.env.HTTPS_PROXY, bypass: '<-loopback>,localhost,127.0.0.1' }, args: ['--ignore-certificate-errors'] } : {}) });
 const p = await b.newPage({ viewport:{width:1500,height:940} });
 p.on('pageerror', e=>{ if(!/THREE is not defined/.test(e.message)) errs.push(e.message); });
 p.on('console', m=>{ if(m.type()==='error' && !/CERT_AUTHORITY|Failed to load resource/.test(m.text())) errs.push(m.text()); });

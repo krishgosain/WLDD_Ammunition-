@@ -32,6 +32,15 @@ import {
   IconWarn, IconSun, IconMoon, IconFilter, IconLink, IconPresent, IconClose,
   IconWaves, IconRows, IconGrid,
 } from './components/Icons';
+// Fonts are served from the app itself, not Google: same-origin fonts can be
+// embedded when the one-pager is drawn into a PDF, and there is no
+// render-blocking request to a third party.
+import '@fontsource/anton/latin-400.css';
+import '@fontsource/sora/latin-300.css';
+import '@fontsource/sora/latin-400.css';
+import '@fontsource/sora/latin-500.css';
+import '@fontsource/sora/latin-600.css';
+import '@fontsource/sora/latin-700.css';
 import './styles/app.css';
 
 // three.js is ~700kB; the board must paint without it.

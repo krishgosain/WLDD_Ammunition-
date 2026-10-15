@@ -50,13 +50,52 @@ export default function OnePager({
     : kinds[0] ?? '';
   const today = fmtMonth(new Date().toISOString().slice(0, 10));
 
-  // The page title becomes the PDF's file name, so name it for the client
-  // rather than the app; restore it once the print dialog closes.
-  const download = () => {
+  const pageRef = useRef<HTMLElement>(null);
+  const [busy, setBusy] = useState(false);
+  const fileName = preparedFor.trim() ? `WLDD for ${preparedFor.trim()}` : 'WLDD';
+
+  // Fallback only: the browser's print dialog. The page title becomes the PDF's
+  // file name, so name it for the client; restore it once the dialog closes.
+  const printPage = () => {
     const prev = document.title;
-    document.title = preparedFor.trim() ? `WLDD for ${preparedFor.trim()}` : 'WLDD';
+    document.title = fileName;
     window.addEventListener('afterprint', () => { document.title = prev; }, { once: true });
     window.print();
+  };
+
+  // The PDF is built here rather than through the print dialog, because
+  // browsers disagree on whether a printed PDF keeps its links (Safari's
+  // "Save as PDF" drops them). The page is drawn as one image, and every link
+  // on it is written into the PDF as a real link annotation over the spot
+  // where it sits — so "View the report" is clickable in any PDF viewer.
+  const download = async () => {
+    const el = pageRef.current;
+    if (!el) return;
+    setBusy(true);
+    try {
+      const [{ toCanvas }, { jsPDF }] = await Promise.all([import('html-to-image'), import('jspdf')]);
+      const box = el.getBoundingClientRect();
+      const canvas = await toCanvas(el, {
+        pixelRatio: 2, backgroundColor: '#FFFCF6',
+        style: { borderRadius: '0', boxShadow: 'none' },
+      });
+      const W = 210; // A4 width in mm; the height follows the page
+      const H = (W * box.height) / box.width;
+      const pdf = new jsPDF({ unit: 'mm', format: [W, H], orientation: H >= W ? 'portrait' : 'landscape' });
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, W, H);
+      const k = W / box.width;
+      el.querySelectorAll<HTMLAnchorElement>('a[href]').forEach((a) => {
+        const r = a.getBoundingClientRect();
+        pdf.link((r.left - box.left) * k, (r.top - box.top) * k, r.width * k, r.height * k, { url: a.href });
+      });
+      pdf.setProperties({ title: fileName });
+      pdf.save(`${fileName}.pdf`);
+    } catch (err) {
+      console.warn('PDF build failed, falling back to print', err);
+      printPage();
+    } finally {
+      setBusy(false);
+    }
   };
 
   const clientLink = () => {
@@ -139,8 +178,8 @@ export default function OnePager({
           </section>
 
           <div className="builder__actions">
-            <button className="btn btn--ghost" onClick={download} disabled={!chosen.length}>
-              <IconPrint /> Download PDF
+            <button className="btn btn--ghost" onClick={download} disabled={!chosen.length || busy}>
+              <IconPrint /> {busy ? 'Building PDF…' : 'Download PDF'}
             </button>
             <button className="btn" disabled={!chosen.length}
               title="Opens WLDD Ammo in pitch mode with exactly these campaigns"
@@ -152,7 +191,7 @@ export default function OnePager({
 
         <section className="preview" aria-label="One-pager preview">
           <div className="preview__label"><span className="live__dot" /> Live preview · what the client sees</div>
-          <article className="onepage" style={{ ['--op-accent' as string]: accent }}>
+          <article ref={pageRef} className="onepage" style={{ ['--op-accent' as string]: accent }}>
             <header className="onepage__head">
               <span className="onepage__mark">WLDD</span>
               <span className="onepage__for">
