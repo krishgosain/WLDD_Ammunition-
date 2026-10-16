@@ -7,6 +7,7 @@
  *   node tests/ui-flows.mjs http://localhost:4173
  */
 import { chromium } from 'playwright';
+import fs from 'node:fs';
 
 const B = process.argv[2] || 'http://localhost:4173';
 const fails = []; const errs = [];
@@ -149,6 +150,55 @@ await step('search still works end to end', async()=>{
   const clients = await p.locator('.card__client').allInnerTexts();
   A(clients.length>0 && clients.every(c=>/myntra/i.test(c)),'client leak: '+JSON.stringify([...new Set(clients)]));
   console.log('       '+clients.length+' results, all MYNTRA');
+});
+
+await step('Download PDF writes a file whose report links are real', async()=>{
+  // The browser's print dialog cannot be trusted to carry a hyperlink into a
+  // PDF: Chrome's own "Save as PDF" keeps the anchor as a /Link annotation,
+  // but "Microsoft Print to PDF" — a printer driver — rasterises the page and
+  // drops every annotation, which is what reached the field. The button now
+  // writes the file itself, so this walks the real path and reads the bytes
+  // that come out of it.
+  await p.goto(B,{waitUntil:'networkidle'}); await p.waitForSelector('.card');
+  const ids = await p.evaluate(async()=>{
+    const r = await fetch('/data/campaigns.json'); const j = await r.json();
+    const arr = Array.isArray(j) ? j : (j.campaigns ?? j.items ?? []);
+    return arr.filter(c=>c.report).slice(0,3).map(c=>c.id);
+  });
+  A(ids.length===3,'no campaigns with report links to test with');
+  await p.goto(B+'/?cmp='+ids.join('~'),{waitUntil:'networkidle'});
+  await p.waitForSelector('text=Build one-pager',{timeout:15000});
+  await p.click('text=Build one-pager');
+  await p.waitForSelector('.onepage',{timeout:15000});
+  await p.waitForTimeout(1200);
+  const urls = await p.locator('.op-tile__report').evaluateAll(els=>els.map(e=>e.href));
+  A(urls.length===3,'report links missing on screen');
+
+  const [dl] = await Promise.all([
+    p.waitForEvent('download',{timeout:90000}),
+    p.click('text=Download PDF'),
+  ]);
+  const file = await dl.path();
+  const pdf = fs.readFileSync(file);
+  A(pdf.length>50000,'PDF came out near-empty ('+pdf.length+' bytes)');
+  const txt = pdf.toString('latin1');
+  const links = (txt.match(/\/Subtype\s*\/Link/g)||[]).length;
+  // three reports, plus wldd.in on the wordmark, the CTA button and the contact card
+  A(links===6,'expected 6 link annotations, found '+links);
+  for (const u of urls) A(txt.includes(u),'the PDF does not carry '+u);
+  A(txt.includes('https://wldd.in'),'the PDF does not link to wldd.in');
+  A(/\/Subtype\s*\/Image/.test(txt),'the page itself is missing from the PDF');
+  console.log('       '+dl.suggestedFilename()+' — '+Math.round(pdf.length/1024)+'kB, '+links+' live links');
+});
+
+await step('the one-pager survives print media', async()=>{
+  // Ctrl+P still has to work. The print stylesheet hides the board, every
+  // virtualised row then measured zero, the virtualiser read each zero as a
+  // resize, and React gave up — taking the one-pager down with it.
+  await p.emulateMedia({media:'print'});
+  await p.waitForTimeout(2500);
+  A(await p.locator('.onepager').count()>0,'the one-pager was torn out of the DOM in print');
+  await p.emulateMedia({media:'screen'});
 });
 
 console.log('\nerrors: '+errs.length); errs.slice(0,5).forEach(e=>console.log('  ! '+e.slice(0,160)));

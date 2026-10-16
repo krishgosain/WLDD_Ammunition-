@@ -106,6 +106,8 @@ export default function OnePager({
     if (!el) return;
     setBusy(true);
     try {
+      // A font that has not finished loading would be drawn as a fallback.
+      if (document.fonts?.ready) await document.fonts.ready;
       const [{ toCanvas }, { jsPDF }] = await Promise.all([import('html-to-image'), import('jspdf')]);
       const box = el.getBoundingClientRect(); // scaled, like the link boxes below
       const canvas = await toCanvas(el, {
