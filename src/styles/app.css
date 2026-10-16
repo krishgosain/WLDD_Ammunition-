@@ -1044,16 +1044,13 @@ h1, h2, h3, h4, p { margin: 0; }
   content: ''; position: absolute; right: -60px; top: -60px; width: 200px; height: 200px; border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 255, 255, .28), transparent 65%); pointer-events: none;
 }
-.op-tile__no {
-  position: absolute; right: 16px; top: 10px; font-family: var(--display); font-size: 54px; line-height: 1; opacity: .22;
-}
 .op-tile__meta {
-  align-self: flex-start; max-width: calc(100% - 64px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   padding: 5px 10px; border-radius: 99px; background: rgba(255, 255, 255, .2);
   font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
 }
 .op-tile__client {
-  margin-top: 18px; padding-right: 48px; font-family: var(--display); font-size: 26px; line-height: 1.02;
+  margin-top: 18px; font-family: var(--display); font-size: 26px; line-height: 1.02;
   text-transform: uppercase; letter-spacing: .02em; overflow-wrap: anywhere;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
 }
@@ -1088,7 +1085,6 @@ h1, h2, h3, h4, p { margin: 0; }
 .onepage--n1 .op-tile__eng b { font-size: 60px; }
 .onepage--n2 .op-tile__figs b { font-size: 72px; }
 .onepage--n2 .op-tile__eng b { font-size: 40px; }
-.onepage--n1 .op-tile__no, .onepage--n2 .op-tile__no { font-size: 90px; }
 /* denser when there are many */
 .onepage--n6 .op-tile__brief, .onepage--n7 .op-tile__brief { -webkit-line-clamp: 3; line-clamp: 3; }
 .onepage--n7 .op-grid { grid-auto-rows: minmax(250px, 1fr); }
@@ -1106,7 +1102,6 @@ h1, h2, h3, h4, p { margin: 0; }
 .onepage--dense .op-work__head { padding-bottom: 10px; }
 .onepage--dense .op-grid { gap: 10px; }
 .onepage--dense .op-tile { padding: 16px 16px 14px; border-radius: 20px; }
-.onepage--dense .op-tile__no { font-size: 44px; right: 14px; }
 .onepage--dense .op-tile__client { margin-top: 12px; font-size: 22px; }
 .onepage--dense .op-tile__name { font-size: 12.5px; }
 .onepage--dense .op-tile__brief { margin-top: 7px; font-size: 11px; -webkit-line-clamp: 2; line-clamp: 2; }

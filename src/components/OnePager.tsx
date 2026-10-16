@@ -280,7 +280,6 @@ export default function OnePager({
                         const t = TILES[i % TILES.length];
                         return (
                           <div className="op-tile" key={c.id} style={{ background: t.bg, color: t.ink }}>
-                            <span className="op-tile__no" aria-hidden>{String(i + 1).padStart(2, '0')}</span>
                             <span className="op-tile__meta">{c.isVertical ? c.industry : c.clientType} · {c.date ? fmtMonth(c.date) : '—'}</span>
                             <span className="op-tile__client">{c.client}</span>
                             <span className="op-tile__name">{c.name}</span>
@@ -311,9 +310,9 @@ export default function OnePager({
                 <footer className="op-cta">
                   <div className="op-cta__main">
                     <div className="op-cta__title">Let’s build <span>yours.</span></div>
-                    <p>Creator-led campaigns that get talked about, measured and reported. Your brand could be the next one on this page.</p>
+                    <p>Organic first campaigns that make your brand at the centre of the attention economy.</p>
                     <a className="op-cta__btn" href={SITE} target="_blank" rel="noopener noreferrer">
-                      Start a campaign <span aria-hidden>→</span> wldd.in
+                      Check our website <span aria-hidden>→</span> wldd.in
                     </a>
                   </div>
                   <div className="op-cta__contact">
