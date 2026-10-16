@@ -1007,6 +1007,12 @@ h1, h2, h3, h4, p { margin: 0; }
   height: 40px; padding: 0 16px; border-radius: 999px; background: #FFF8EF; color: #1F1A14;
   font-size: 13px; font-weight: 600; text-decoration: none;
 }
+.builder__err {
+  margin-top: 10px; padding: 9px 12px; border-radius: 10px;
+  background: #FDECE7; border: 1px solid #E9B3A4; color: #7A2E1A;
+  font-size: 12.5px; line-height: 1.45;
+}
+
 .onepage__empty { padding: 60px 40px; color: #776A57; font-size: 15px; }
 .onepage__foot {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 20px;

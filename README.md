@@ -335,14 +335,21 @@ Enter opens the focused card, the shortfall banner names the real ceiling, the
 palette filters, pitch mode hides internals, the 3D field renders, the theme
 toggles, and a deep link restores the view.
 
-It also prints. The one-pager goes to PDF through the browser's own print
-path, and the print stylesheet hides the board so the page prints alone —
-which used to take the whole app down: the hidden rows measured zero, the
-virtualiser read each zero as a resize, and React gave up on the update loop,
-unmounting the one-pager mid-print and producing a blank 1.2kB PDF. The flow
-now walks kit → builder → print media → PDF and fails if the page is missing,
-if the PDF comes back blank, or if the report links lose their link
-annotations.
+It also covers the PDF, which the one-pager writes itself rather than handing
+to the print dialog. Chrome's "Save as PDF" keeps an anchor as a /Link
+annotation, but "Microsoft Print to PDF" — the default destination on plenty
+of Windows machines — is a printer driver: it rasterises through the Windows
+print path and drops every annotation, so the report pill arrived at clients
+with nothing behind it to click. The page is now drawn once with its computed
+styles inlined, placed on an A4 sheet, and each anchor re-added as a link
+rectangle over where it was drawn, so the destination cannot matter. The flow
+clicks the button, reads the downloaded bytes, and fails unless the file
+carries the page image, three link annotations and all three report URLs.
+
+Ctrl+P still has to work, so a second flow enters print media and checks the
+one-pager is still there. It used to vanish: the print stylesheet hides the
+board, the hidden rows measured zero, the virtualiser read each zero as a
+resize, and React gave up on the update loop mid-print.
 
 ## Keyboard
 

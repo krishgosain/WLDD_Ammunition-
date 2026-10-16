@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import type { Campaign } from '../lib/types';
 import { fmt, fmtMonth } from '../lib/format';
@@ -31,6 +31,9 @@ export default function OnePager({
   const [showBrief, setShowBrief] = useState(true);
   const [showReport, setShowReport] = useState(true);
   const [accent, setAccent] = useState(ACCENTS[0]);
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState('');
+  const pageRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -51,6 +54,24 @@ export default function OnePager({
     const p = new URLSearchParams({ pitch: '1', cmp: chosen.map((c) => c.id).join('~') });
     return `${location.origin}${location.pathname}?${p}`;
   };
+
+  const save = useCallback(async () => {
+    const el = pageRef.current;
+    if (!el || saving) return;
+    setSaving(true);
+    setSaveErr('');
+    try {
+      const who = preparedFor.trim().replace(/[^\w ]+/g, '').trim().replace(/ +/g, '-');
+      // The PDF writer is most of a megabyte of library; it loads when someone
+      // actually asks for a file, not when the builder opens.
+      const { downloadPdf } = await import('../lib/pdf');
+      await downloadPdf(el, `WLDD${who ? `-${who}` : ''}-one-pager.pdf`);
+    } catch {
+      setSaveErr('Could not build the PDF. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  }, [preparedFor, saving]);
 
   return (
     <motion.div
@@ -128,8 +149,8 @@ export default function OnePager({
           </section>
 
           <div className="builder__actions">
-            <button className="btn btn--ghost" onClick={() => window.print()} disabled={!chosen.length}>
-              <IconPrint /> Download PDF
+            <button className="btn btn--ghost" onClick={save} disabled={!chosen.length || saving}>
+              <IconPrint /> {saving ? 'Building PDF…' : 'Download PDF'}
             </button>
             <button className="btn" disabled={!chosen.length}
               title="Opens WLDD Ammo in pitch mode with exactly these campaigns"
@@ -137,11 +158,12 @@ export default function OnePager({
               <IconLink /> Copy client link
             </button>
           </div>
+          {saveErr && <p className="builder__err" role="alert">{saveErr}</p>}
         </aside>
 
         <section className="preview" aria-label="One-pager preview">
           <div className="preview__label"><span className="live__dot" /> Live preview · what the client sees</div>
-          <article className="onepage" style={{ ['--op-accent' as string]: accent }}>
+          <article ref={pageRef} className="onepage" style={{ ['--op-accent' as string]: accent }}>
             <header className="onepage__head">
               <span className="onepage__mark">WLDD</span>
               <span className="onepage__for">
