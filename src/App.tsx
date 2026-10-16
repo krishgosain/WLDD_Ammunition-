@@ -35,7 +35,7 @@ import './styles/app.css';
 
 // three.js is ~700kB; the board must paint without it.
 const ReachField = lazy(() => import('./components/ReachField'));
-// The one-pager pulls in a QR encoder that nobody browsing the board needs.
+// The pitch one-pager is a separate screen; the board should not carry it.
 const OnePager = lazy(() => import('./components/OnePager'));
 
 const MAX_COMPARE = 4;

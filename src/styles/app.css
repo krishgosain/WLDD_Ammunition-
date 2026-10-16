@@ -1007,26 +1007,6 @@ h1, h2, h3, h4, p { margin: 0; }
   height: 40px; padding: 0 16px; border-radius: 999px; background: #FFF8EF; color: #1F1A14;
   font-size: 13px; font-weight: 600; text-decoration: none;
 }
-/* Link and its scannable twin. On screen the QR is a quiet companion to the
-   pill; in print it is the part that actually survives. */
-.onepage__reportrow {
-  display: flex; align-items: flex-end; gap: 14px; margin-top: 18px;
-}
-.onepage__report { margin-top: 0 !important; }
-.onepage__qr {
-  width: 58px; height: 58px; flex: none; border-radius: 6px;
-  background: #fff; padding: 4px; box-sizing: content-box;
-}
-
-/* Builder warning: the reports a client will not be able to open. */
-.builder__warn {
-  display: flex; gap: 9px; align-items: flex-start; margin-top: 12px;
-  padding: 10px 12px; border-radius: 10px;
-  background: #FFF4E2; border: 1px solid #E8C98D; color: #6B4E1C;
-  font-size: 12.5px; line-height: 1.45;
-}
-.builder__warn svg { flex: none; margin-top: 1px; }
-
 .onepage__empty { padding: 60px 40px; color: #776A57; font-size: 15px; }
 .onepage__foot {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 20px;
@@ -1048,11 +1028,9 @@ h1, h2, h3, h4, p { margin: 0; }
   .onepager__body { padding: 0; display: block; }
   .onepage { box-shadow: none; border-radius: 0; }
   .onepage__panel { break-inside: avoid; }
-  /* The anchor may or may not survive as a clickable annotation depending on
-     the print engine, and never survives onto paper. The QR always does, so it
-     is given room here rather than treated as decoration. */
-  .onepage__qr { width: 66px; height: 66px; }
-  .onepage__reportrow { gap: 12px; }
+  /* The report pill is a real anchor, and print-to-PDF carries it through as
+     a clickable link annotation — so it keeps its own styling rather than
+     picking up a printed underline. */
   a[href] { text-decoration: none; }
 }
 

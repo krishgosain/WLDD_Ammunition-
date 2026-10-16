@@ -175,7 +175,6 @@ await step('the one-pager survives print and carries its links', async()=>{
   await p.emulateMedia({media:'print'});
   await p.waitForTimeout(2500);
   A(await p.locator('.onepager').count()>0,'the one-pager was torn out of the DOM in print');
-  A(await p.locator('.onepage__qr').count()===3,'report codes missing in print');
 
   const pdf = await p.pdf({format:'A4',printBackground:true});
   A(pdf.length>20000,'PDF came out blank ('+pdf.length+' bytes)');
@@ -183,7 +182,7 @@ await step('the one-pager survives print and carries its links', async()=>{
   const links = [...txt.matchAll(/\/Subtype\s*\/Link/g)].length;
   A(links>=3,'report links are not clickable in the PDF ('+links+' annotations)');
   await p.emulateMedia({media:'screen'});
-  console.log('       PDF '+Math.round(pdf.length/1024)+'kB, '+links+' live links, 3 codes');
+  console.log('       PDF '+Math.round(pdf.length/1024)+'kB, '+links+' live links');
 });
 
 console.log('\nerrors: '+errs.length); errs.slice(0,5).forEach(e=>console.log('  ! '+e.slice(0,160)));
