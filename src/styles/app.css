@@ -48,8 +48,7 @@ h1, h2, h3, h4, p { margin: 0; }
 .mark__word, .mark em, .hero__title, .board__title, .card__index, .card__client,
 .card__fig b, .ticker__item, .facet__title, .live__digit, .pane__title,
 .metric b, .statstrip b, .tray__count, .compare__client, .compare__fig,
-.builder__title, .onepage__mark, .onepage__total, .onepage__reached,
-.onepage__client, .onepage__figs b, .onepage__cta, .sparkrow__v, .builder__pickname b,
+.builder__title, .sparkrow__v, .builder__pickname b,
 .builder__pickfig, .empty h3 {
   font-family: var(--display); font-weight: 400;
   text-transform: uppercase; letter-spacing: .03em;
@@ -969,69 +968,205 @@ h1, h2, h3, h4, p { margin: 0; }
 .preview { flex: 999 1 600px; min-width: 0; }
 .preview__label { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); padding: 0 4px 12px; }
 
-/* The client page is always light: it is a document, not the app. */
-.onepage {
-  --op-accent: #E4572E;
-  background: #FFFCF6; color: #1F1A14; border-radius: 34px; overflow: hidden;
-  box-shadow: 0 50px 100px -50px rgba(31, 26, 20, .45);
-  -webkit-print-color-adjust: exact; print-color-adjust: exact;
-}
-.onepage__head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 34px 40px 0; }
-.onepage__mark { font-size: 28px; line-height: 1; }
-.onepage__for { margin-left: auto; font-size: 13px; font-weight: 600; color: #776A57; }
-.onepage__hero { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 28px; padding: 44px 40px 34px; }
-.onepage__total { font-size: clamp(110px, 12vw, 180px); line-height: 1; color: var(--op-accent); }
-.onepage__sum { flex: 1 1 220px; min-width: 0; padding-bottom: 14px; }
-.onepage__reached { font-size: 30px; line-height: 1; }
-.onepage__sum p { margin-top: 8px; font-size: 15px; line-height: 1.5; color: #776A57; }
-.onepage__panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; padding: 0 14px 14px; }
-.onepage__panel {
-  display: flex; flex-direction: column; min-height: 400px; padding: 24px;
-  border-radius: 24px; color: #FFF8EF;
-}
-.onepage__meta { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
-.onepage__client { font-size: 22px; line-height: 1.05; margin-top: 28px; }
-.onepage__name { font-size: 19px; font-weight: 600; line-height: 1.25; margin-top: 6px; }
-.onepage__brief {
-  font-size: 14px; line-height: 1.55; margin-top: 12px; opacity: .85;
-  display: -webkit-box; -webkit-line-clamp: 6; line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
-}
-.onepage__figs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 20px; margin-top: auto; padding-top: 32px; }
-.onepage__figs > span { display: flex; flex-direction: column; gap: 8px; }
-.onepage__figs b { font-size: 64px; line-height: 1; }
-.onepage__eng b { font-size: 32px; opacity: .85; }
-.onepage__figs i { font-style: normal; font-size: 13px; font-weight: 600; }
-.onepage__url { display: none; margin-top: 6px; font-size: 9px; opacity: .75; overflow-wrap: anywhere; }
-.onepage__report {
-  align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; margin-top: 18px;
-  height: 40px; padding: 0 16px; border-radius: 999px; background: #FFF8EF; color: #1F1A14;
-  font-size: 13px; font-weight: 600; text-decoration: none;
-}
-.onepage__empty { padding: 60px 40px; color: #776A57; font-size: 15px; }
-.onepage__foot {
-  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 20px;
-  margin: 0 14px 14px; padding: 30px; border-radius: 24px; background: #1F1A14; color: #F8F3EA;
-}
-.onepage__cta { flex: 1 1 300px; font-size: 44px; line-height: 1; }
-.onepage__cta span { color: var(--op-accent); }
-.onepage__contact { font-size: 14px; line-height: 1.6; }
-.onepage__contact div + div { color: #B8AB97; }
-.onepage__site { font-size: 13px; font-weight: 600; color: #B8AB97; }
+/* Fit-to-column stage: the sheet keeps its A4 size and is scaled to fit. */
+.preview__stage { position: relative; width: 100%; max-width: 794px; }
+.preview__scaler { position: absolute; top: 0; left: 0; width: 794px; transform-origin: top left; }
 
-/* Download PDF prints the client page alone. */
+/* ---- The client sheet. Always light, always A4: a document, not the app. ---- */
+.onepage {
+  --op-accent: #FFD644;
+  --op-ink: #131313;
+  --op-paper: #FFF8EC;
+  width: 794px; min-height: 1123px; display: flex; flex-direction: column;
+  background: var(--op-paper); color: var(--op-ink); font-family: var(--font);
+  box-shadow: 0 50px 100px -50px rgba(31, 26, 20, .45); border-radius: 6px; overflow: hidden;
+}
+.onepage a { text-decoration: none; }
+.onepage .num--none { opacity: .35; }
+
+/* header: the dark brand slab with the headline number */
+.op-head {
+  position: relative; padding: 30px 36px 28px; color: #FFF8EC;
+  background:
+    radial-gradient(420px 260px at 92% 8%, rgba(232, 56, 159, .45), transparent 70%),
+    radial-gradient(380px 260px at 70% 110%, rgba(139, 124, 255, .40), transparent 70%),
+    radial-gradient(300px 220px at 0% 100%, rgba(255, 59, 47, .30), transparent 70%),
+    #131313;
+}
+.op-head__top { display: flex; align-items: center; gap: 18px; }
+.op-mark { font-family: var(--display); font-size: 44px; line-height: 1; letter-spacing: .02em; }
+.op-shapes { display: flex; align-items: center; gap: 7px; }
+.op-shape { display: block; width: 18px; height: 18px; }
+.op-shape--circle { border-radius: 50%; background: #FF3B2F; }
+.op-shape--leaf { border-radius: 18px 0 18px 0; background: #FFD644; }
+.op-shape--square { border-radius: 5px; background: #8B7CFF; }
+.op-shape--pill { width: 30px; border-radius: 99px; background: #E8389F; }
+.op-for { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.op-for span { font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: rgba(255, 248, 236, .6); }
+.op-for b {
+  font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1.1; text-transform: uppercase;
+  letter-spacing: .02em; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.op-hero { display: flex; align-items: flex-end; gap: 24px; margin-top: 26px; }
+.op-total {
+  font-family: var(--display); font-size: 150px; line-height: .9; letter-spacing: .01em;
+  color: var(--op-accent); white-space: nowrap;
+}
+.op-hero__side { flex: 1; min-width: 0; padding-bottom: 8px; }
+.op-hero__label { font-family: var(--display); font-size: 36px; line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
+.op-hero__side p { margin-top: 8px; font-size: 13px; line-height: 1.5; color: rgba(255, 248, 236, .72); }
+.op-stats { display: flex; gap: 10px; margin-top: 22px; }
+.op-stat {
+  flex: 1; display: flex; align-items: baseline; gap: 10px; padding: 12px 16px; border-radius: 16px;
+  background: rgba(255, 248, 236, .08); box-shadow: inset 0 0 0 1px rgba(255, 248, 236, .12);
+}
+.op-stat b { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1; color: #FFF8EC; }
+.op-stat span { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: rgba(255, 248, 236, .62); }
+
+/* the work: tiles that stretch to fill whatever space the page has left */
+.op-work { flex: 1; display: flex; flex-direction: column; padding: 22px 24px 0; min-height: 0; }
+.op-work__head { display: flex; align-items: baseline; gap: 12px; padding: 0 4px 12px; }
+.op-work__head h2 { font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
+.op-work__head span { font-size: 12px; color: #776A57; }
+.op-grid { flex: 1; display: grid; gap: 12px; grid-auto-rows: 1fr; }
+.onepage--n1 .op-grid { grid-template-columns: 1fr; }
+.onepage--n2 .op-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.onepage--n3 .op-grid, .onepage--n5 .op-grid, .onepage--n6 .op-grid, .onepage--n7 .op-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.onepage--n4 .op-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* five tiles: the first one leads across two columns */
+.onepage--n5 .op-tile:first-child { grid-column: span 2; }
+
+.op-tile {
+  position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 0;
+  padding: 20px 20px 18px; border-radius: 22px;
+}
+.op-tile::after { /* soft light in the corner, so the colour has depth */
+  content: ''; position: absolute; right: -60px; top: -60px; width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, .28), transparent 65%); pointer-events: none;
+}
+.op-tile__no {
+  position: absolute; right: 16px; top: 10px; font-family: var(--display); font-size: 54px; line-height: 1; opacity: .22;
+}
+.op-tile__meta {
+  align-self: flex-start; max-width: calc(100% - 64px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 5px 10px; border-radius: 99px; background: rgba(255, 255, 255, .2);
+  font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+}
+.op-tile__client {
+  margin-top: 18px; padding-right: 48px; font-family: var(--display); font-size: 26px; line-height: 1.02;
+  text-transform: uppercase; letter-spacing: .02em; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+.op-tile__name {
+  margin-top: 6px; font-size: 13.5px; font-weight: 600; line-height: 1.3;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+.op-tile__brief {
+  margin-top: 10px; font-size: 11.5px; line-height: 1.5; opacity: .88;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden;
+}
+.op-tile__figs { display: flex; align-items: flex-end; gap: 6px 16px; flex-wrap: nowrap; margin-top: auto; padding-top: 16px; }
+.op-tile__figs > span { display: flex; flex-direction: column; gap: 4px; }
+.op-tile__figs b { font-family: var(--display); font-weight: 400; font-size: 54px; line-height: .95; }
+.op-tile__eng b { font-size: 30px; opacity: .9; }
+.op-tile__figs i { font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+.op-tile__report {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; margin-top: 14px;
+  height: 34px; padding: 0 14px; border-radius: 99px; background: #FFFFFF;
+  font-size: 12px; font-weight: 700; box-shadow: 0 8px 18px -10px rgba(0, 0, 0, .45);
+}
+.op-tile__report svg { width: 13px; height: 13px; }
+
+/* roomier tiles when there are few of them */
+.onepage--n1 .op-tile { padding: 28px; }
+.onepage--n2 .op-tile { padding: 24px; }
+.onepage--n1 .op-tile__client, .onepage--n2 .op-tile__client { font-size: 38px; }
+.onepage--n1 .op-tile__name, .onepage--n2 .op-tile__name { font-size: 17px; }
+.onepage--n1 .op-tile__brief { font-size: 13.5px; -webkit-line-clamp: 8; line-clamp: 8; }
+.onepage--n2 .op-tile__brief { font-size: 13px; -webkit-line-clamp: 5; line-clamp: 5; }
+.onepage--n1 .op-tile__figs b { font-size: 120px; }
+.onepage--n1 .op-tile__eng b { font-size: 60px; }
+.onepage--n2 .op-tile__figs b { font-size: 72px; }
+.onepage--n2 .op-tile__eng b { font-size: 40px; }
+.onepage--n1 .op-tile__no, .onepage--n2 .op-tile__no { font-size: 90px; }
+/* denser when there are many */
+.onepage--n6 .op-tile__brief, .onepage--n7 .op-tile__brief { -webkit-line-clamp: 3; line-clamp: 3; }
+.onepage--n7 .op-grid { grid-auto-rows: minmax(250px, 1fr); }
+.onepage--n7 .op-tile__figs b { font-size: 44px; }
+
+/* Four to six campaigns still fit one A4 page: a tighter header, close and tile. */
+.onepage--dense .op-head { padding: 24px 32px 22px; }
+.onepage--dense .op-hero { margin-top: 16px; }
+.onepage--dense .op-total { font-size: 112px; }
+.onepage--dense .op-hero__label { font-size: 30px; }
+.onepage--dense .op-stats { margin-top: 16px; }
+.onepage--dense .op-stat { padding: 9px 14px; }
+.onepage--dense .op-stat b { font-size: 24px; }
+.onepage--dense .op-work { padding-top: 16px; }
+.onepage--dense .op-work__head { padding-bottom: 10px; }
+.onepage--dense .op-grid { gap: 10px; }
+.onepage--dense .op-tile { padding: 16px 16px 14px; border-radius: 20px; }
+.onepage--dense .op-tile__no { font-size: 44px; right: 14px; }
+.onepage--dense .op-tile__client { margin-top: 12px; font-size: 22px; }
+.onepage--dense .op-tile__name { font-size: 12.5px; }
+.onepage--dense .op-tile__brief { margin-top: 7px; font-size: 11px; -webkit-line-clamp: 2; line-clamp: 2; }
+.onepage--dense .op-tile__figs { padding-top: 10px; }
+.onepage--dense .op-tile__figs b { font-size: 42px; }
+.onepage--dense .op-tile__eng b { font-size: 24px; }
+.onepage--dense .op-tile__report { margin-top: 10px; height: 30px; font-size: 11px; }
+.onepage--dense .op-cta { margin: 12px 24px 22px; }
+.onepage--dense .op-cta__main { padding: 20px 24px; }
+.onepage--dense .op-cta__title { font-size: 40px; }
+.onepage--dense .op-cta__main p { margin-top: 6px; }
+.onepage--dense .op-cta__btn { margin-top: 12px; height: 38px; font-size: 13px; }
+.onepage--dense .op-cta__contact { padding: 18px; }
+
+/* the close: one clear call to action, and the way to reach WLDD */
+.op-cta {
+  display: flex; gap: 12px; margin: 14px 24px 24px;
+}
+.op-cta__main {
+  flex: 1; position: relative; overflow: hidden; padding: 26px 28px; border-radius: 24px; color: #FFFFFF;
+  background:
+    radial-gradient(260px 200px at 100% 0%, rgba(255, 214, 68, .55), transparent 70%),
+    linear-gradient(120deg, #FF3B2F 0%, #E8389F 55%, #8B7CFF 100%);
+}
+.op-cta__title { font-family: var(--display); font-size: 50px; line-height: .95; text-transform: uppercase; letter-spacing: .01em; }
+.op-cta__title span { color: #FFD644; }
+.op-cta__main p { margin-top: 10px; max-width: 380px; font-size: 12.5px; line-height: 1.5; opacity: .92; }
+.op-cta__btn {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; height: 44px; padding: 0 20px;
+  border-radius: 99px; background: #131313; color: #FFFFFF; font-size: 14px; font-weight: 700;
+  box-shadow: 0 12px 24px -12px rgba(0, 0, 0, .6);
+}
+.op-cta__btn span { color: #FFD644; }
+.op-cta__contact {
+  flex: 0 0 210px; display: flex; flex-direction: column; justify-content: flex-end; gap: 4px;
+  padding: 22px; border-radius: 24px; background: #131313; color: #FFF8EC;
+}
+.op-cta__contact span { font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: rgba(255, 248, 236, .55); }
+.op-cta__contact b { font-family: var(--display); font-weight: 400; font-size: 24px; line-height: 1.05; text-transform: uppercase; overflow-wrap: anywhere; }
+.op-cta__contact div { font-size: 12px; line-height: 1.5; color: rgba(255, 248, 236, .75); overflow-wrap: anywhere; }
+.op-cta__contact a { margin-top: 10px; font-size: 13px; font-weight: 700; color: #FFD644; }
+
+.onepage__url { display: none; margin-top: 5px; font-size: 8px; opacity: .8; overflow-wrap: anywhere; }
+.onepage__empty { flex: 1; padding: 60px 40px; color: #776A57; font-size: 15px; }
+
+/* Fallback only (the PDF is normally built in the app): print the sheet alone. */
 @media print {
   /* Zero page margin: browsers only print their own title/URL/date header and
      footer inside the margin, so with none there is nowhere for them to go. */
-  @page { margin: 0; }
+  @page { size: A4; margin: 0; }
   html, body { background: #fff !important; }
-  .onepage { padding: 12mm !important; }
   .onepage__url { display: block; }
   .app > :not(.onepager) { display: none !important; }
   .onepager { position: static; overflow: visible; background: #fff; }
   .onepager__bar, .builder, .preview__label { display: none !important; }
   .onepager__body { padding: 0; display: block; }
-  .onepage { box-shadow: none; border-radius: 0; }
-  .onepage__panel { break-inside: avoid; }
+  .preview__stage { height: auto !important; }
+  .preview__scaler { position: static; transform: none !important; }
+  .onepage { box-shadow: none; border-radius: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .op-tile { break-inside: avoid; }
 }
 
 /* ---------------------------------------------------------------- responsive */
@@ -1085,7 +1220,6 @@ h1, h2, h3, h4, p { margin: 0; }
   .tray__reach, .tray__items, .tray .btn--tray:first-of-type { display: none; }
   .onepager__bar, .onepager__body { padding-inline: 16px; }
   .onepager__note { display: none; }
-  .onepage__head, .onepage__hero { padding-inline: 22px; }
 }
 @media (max-width: 560px) {
   .mark__word { font-size: 28px; }
