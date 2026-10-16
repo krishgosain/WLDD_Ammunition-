@@ -263,7 +263,7 @@ replaced.
 — when a campaign is renamed, or the fix lands in the sheet itself, the build
 tells you to delete the entry instead of letting a dead override rot unnoticed.
 
-Four figures are currently corrected (the four that previously read above two
+Five figures are currently corrected (the five that previously read above two
 billion). Removing them is a one-line delete each once the sheet is fixed.
 
 The one derived figure that *is* clamped is the "% of target" label, which is
@@ -534,9 +534,14 @@ flip digits read from the sheet-synced archive, with the time of the last sync.
 The page leads with "Watch our magic" and the search.
 
 **Build one-pager.** From the pitch kit, lay the chosen campaigns out as a
-client-facing page — prepared-for line, campaign toggles, accent colour, your
-details — then download it as a PDF (print stylesheet) or copy a client link
-that opens the app in pitch mode with exactly those campaigns.
+client-facing A4 page in WLDD's own colours: a dark header with the total reach,
+engagement and campaign count; one colour tile per campaign with its figures and
+report link; and a closing call to action linking to wldd.in with your contact
+details. The tile grid changes shape with the kit (one wide tile, two up, three
+up, 2×2, 3×2) so one to six campaigns always fill exactly one A4 page; bigger
+kits extend the page. Download PDF builds the file in the app, with real link
+annotations, so every link is clickable in any PDF viewer. Copy client link
+opens the app in pitch mode with exactly those campaigns.
 
 **Motion with intent.** Rows stagger in as results change, a ticker of the
 biggest results runs under the hero, and the view switcher's active pill is one
@@ -556,6 +561,5 @@ and `prefers-reduced-motion` stops every idle animation including the shader.
 ## Roadmap
 
 - [ ] Budget — decks don't carry spend; needs a join against the finance sheet
-- [ ] Self-hosted Anton and Sora, to drop the render-blocking font request
 - [ ] Admin queue — resolve the Health findings in-app and write corrections back to the sheet
 - [ ] Saved searches per user

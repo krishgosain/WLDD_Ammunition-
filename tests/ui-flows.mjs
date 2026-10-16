@@ -171,7 +171,7 @@ await step('Download PDF writes a file whose report links are real', async()=>{
   await p.click('text=Build one-pager');
   await p.waitForSelector('.onepage',{timeout:15000});
   await p.waitForTimeout(1200);
-  const urls = await p.locator('.onepage__report').evaluateAll(els=>els.map(e=>e.href));
+  const urls = await p.locator('.op-tile__report').evaluateAll(els=>els.map(e=>e.href));
   A(urls.length===3,'report links missing on screen');
 
   const [dl] = await Promise.all([
@@ -183,8 +183,10 @@ await step('Download PDF writes a file whose report links are real', async()=>{
   A(pdf.length>50000,'PDF came out near-empty ('+pdf.length+' bytes)');
   const txt = pdf.toString('latin1');
   const links = (txt.match(/\/Subtype\s*\/Link/g)||[]).length;
-  A(links===3,'expected 3 link annotations, found '+links);
+  // three reports, plus wldd.in on the wordmark, the CTA button and the contact card
+  A(links===6,'expected 6 link annotations, found '+links);
   for (const u of urls) A(txt.includes(u),'the PDF does not carry '+u);
+  A(txt.includes('https://wldd.in'),'the PDF does not link to wldd.in');
   A(/\/Subtype\s*\/Image/.test(txt),'the page itself is missing from the PDF');
   console.log('       '+dl.suggestedFilename()+' — '+Math.round(pdf.length/1024)+'kB, '+links+' live links');
 });

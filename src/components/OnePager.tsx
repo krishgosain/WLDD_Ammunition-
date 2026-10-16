@@ -1,18 +1,38 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import type { Campaign } from '../lib/types';
 import { fmt, fmtMonth } from '../lib/format';
 import { IconArrowLeft, IconExternal, IconLink, IconPrint } from './Icons';
 
-const ACCENTS = ['#E4572E', '#7B61D9', '#2F9E6E', '#E9A23B', '#1C96A2'];
+/** Drive file links open most reliably at their /view URL. */
+const reportUrl = (url: string) => url.replace(/^(https:\/\/drive\.google\.com\/file\/d\/[\w-]+)\/?$/, '$1/view');
+
+const SITE = 'https://wldd.in';
+const INK = '#131313';
+const YELLOW = '#FFD644';
+/** WLDD's own palette, from wldd.in: the wordmark letters and the tiles. */
+const MARK = ['#FF3B2F', YELLOW, '#8B7CFF', '#E8389F'];
+const TILES = [
+  { bg: '#F2412B', ink: '#FFFFFF' },
+  { bg: '#6C5CE7', ink: '#FFFFFF' },
+  { bg: YELLOW, ink: INK },
+  { bg: '#D9258F', ink: '#FFFFFF' },
+  { bg: '#2F5BEA', ink: '#FFFFFF' },
+  { bg: '#0F9A68', ink: '#FFFFFF' },
+];
+const ACCENTS = [YELLOW, '#FF3B2F', '#8B7CFF', '#E8389F', '#3DDC97'];
+/** The sheet is A4 at 96dpi; the preview scales it, the PDF uses it as is. */
+const SHEET_W = 794;
+const SHEET_H = 1123;
 
 /**
  * Build one-pager: the pitch kit laid out for the client.
  *
  * Pitch mode is always on here — leads, status and promise ratios never reach
- * the page. Download uses the browser's print-to-PDF with a print stylesheet
- * that prints the page alone; the client link opens the app in pitch mode with
- * exactly these campaigns in the kit.
+ * the page. The page is a fixed A4 sheet whose campaign grid changes shape
+ * with the number of campaigns, so it always fills the page. Download builds
+ * the PDF in the app; the client link opens the app in pitch mode with exactly
+ * these campaigns in the kit.
  */
 export default function OnePager({
   items, colourOf, onClose, onCopy,
@@ -31,9 +51,6 @@ export default function OnePager({
   const [showBrief, setShowBrief] = useState(true);
   const [showReport, setShowReport] = useState(true);
   const [accent, setAccent] = useState(ACCENTS[0]);
-  const [saving, setSaving] = useState(false);
-  const [saveErr, setSaveErr] = useState('');
-  const pageRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -44,34 +61,82 @@ export default function OnePager({
 
   const chosen = useMemo(() => items.filter((c) => on.includes(c.id)), [items, on]);
   const total = chosen.reduce((s, c) => s + (c.reach ?? 0), 0);
+  const totalEng = chosen.reduce((s, c) => s + (c.eng ?? 0), 0);
   const kinds = [...new Set(chosen.map((c) => (c.isVertical ? c.industry : c.clientType)))];
   const across = kinds.length > 1
     ? `${kinds.slice(0, -1).join(', ')} and ${kinds[kinds.length - 1]}`
     : kinds[0] ?? '';
   const today = fmtMonth(new Date().toISOString().slice(0, 10));
 
+  const pageRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [sheetH, setSheetH] = useState(SHEET_H);
+
+  // Fit the A4 sheet to the preview column; the sheet itself never reflows.
+  useEffect(() => {
+    const stage = stageRef.current, page = pageRef.current;
+    if (!stage || !page) return;
+    const ro = new ResizeObserver(() => {
+      setScale(Math.min(1, stage.clientWidth / SHEET_W));
+      setSheetH(page.offsetHeight);
+    });
+    ro.observe(stage); ro.observe(page);
+    return () => ro.disconnect();
+  }, []);
+  const [busy, setBusy] = useState(false);
+  const fileName = preparedFor.trim() ? `WLDD for ${preparedFor.trim()}` : 'WLDD';
+
+  // Fallback only: the browser's print dialog. The page title becomes the PDF's
+  // file name, so name it for the client; restore it once the dialog closes.
+  const printPage = () => {
+    const prev = document.title;
+    document.title = fileName;
+    window.addEventListener('afterprint', () => { document.title = prev; }, { once: true });
+    window.print();
+  };
+
+  // The PDF is built here rather than through the print dialog, because
+  // browsers disagree on whether a printed PDF keeps its links (Safari's
+  // "Save as PDF" drops them). The page is drawn as one image, and every link
+  // on it is written into the PDF as a real link annotation over the spot
+  // where it sits — so "View the report" is clickable in any PDF viewer.
+  const download = async () => {
+    const el = pageRef.current;
+    if (!el) return;
+    setBusy(true);
+    try {
+      // A font that has not finished loading would be drawn as a fallback.
+      if (document.fonts?.ready) await document.fonts.ready;
+      const [{ toCanvas }, { jsPDF }] = await Promise.all([import('html-to-image'), import('jspdf')]);
+      const box = el.getBoundingClientRect(); // scaled, like the link boxes below
+      const canvas = await toCanvas(el, {
+        pixelRatio: 2.5, backgroundColor: '#FFFCF6',
+        width: el.offsetWidth, height: el.offsetHeight,
+      });
+      const W = 210; // A4 in mm; a long kit grows the page past 297
+      const H = (W * el.offsetHeight) / el.offsetWidth;
+      const pdf = new jsPDF({ unit: 'mm', format: [W, H], orientation: H >= W ? 'portrait' : 'landscape' });
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, W, H);
+      const k = W / box.width; // box and link rects share the preview's scale
+      el.querySelectorAll<HTMLAnchorElement>('a[href]').forEach((a) => {
+        const r = a.getBoundingClientRect();
+        pdf.link((r.left - box.left) * k, (r.top - box.top) * k, r.width * k, r.height * k, { url: a.href });
+      });
+      pdf.setProperties({ title: fileName });
+      pdf.save(`${fileName}.pdf`);
+    } catch (err) {
+      console.warn('PDF build failed, falling back to print', err);
+      printPage();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const clientLink = () => {
     const p = new URLSearchParams({ pitch: '1', cmp: chosen.map((c) => c.id).join('~') });
     return `${location.origin}${location.pathname}?${p}`;
   };
-
-  const save = useCallback(async () => {
-    const el = pageRef.current;
-    if (!el || saving) return;
-    setSaving(true);
-    setSaveErr('');
-    try {
-      const who = preparedFor.trim().replace(/[^\w ]+/g, '').trim().replace(/ +/g, '-');
-      // The PDF writer is most of a megabyte of library; it loads when someone
-      // actually asks for a file, not when the builder opens.
-      const { downloadPdf } = await import('../lib/pdf');
-      await downloadPdf(el, `WLDD${who ? `-${who}` : ''}-one-pager.pdf`);
-    } catch {
-      setSaveErr('Could not build the PDF. Try again.');
-    } finally {
-      setSaving(false);
-    }
-  }, [preparedFor, saving]);
 
   return (
     <motion.div
@@ -128,7 +193,6 @@ export default function OnePager({
                 <span>{label}</span>
               </label>
             ))}
-
             <div className="builder__h" style={{ marginTop: 6 }}>Accent</div>
             <div className="builder__accents">
               {ACCENTS.map((c) => (
@@ -149,8 +213,8 @@ export default function OnePager({
           </section>
 
           <div className="builder__actions">
-            <button className="btn btn--ghost" onClick={save} disabled={!chosen.length || saving}>
-              <IconPrint /> {saving ? 'Building PDF…' : 'Download PDF'}
+            <button className="btn btn--ghost" onClick={download} disabled={!chosen.length || busy}>
+              <IconPrint /> {busy ? 'Building PDF…' : 'Download PDF'}
             </button>
             <button className="btn" disabled={!chosen.length}
               title="Opens WLDD Ammo in pitch mode with exactly these campaigns"
@@ -158,62 +222,111 @@ export default function OnePager({
               <IconLink /> Copy client link
             </button>
           </div>
-          {saveErr && <p className="builder__err" role="alert">{saveErr}</p>}
         </aside>
 
         <section className="preview" aria-label="One-pager preview">
-          <div className="preview__label"><span className="live__dot" /> Live preview · what the client sees</div>
-          <article ref={pageRef} className="onepage" style={{ ['--op-accent' as string]: accent }}>
-            <header className="onepage__head">
-              <span className="onepage__mark">WLDD</span>
-              <span className="onepage__for">
-                Prepared for {preparedFor.trim() || '[CLIENT NAME]'} · {today}
-              </span>
-            </header>
-            {chosen.length ? (
-              <>
-                <div className="onepage__hero">
-                  <div className={total ? "onepage__total num" : "onepage__total num num--none"}>{fmt(total || null)}</div>
-                  <div className="onepage__sum">
-                    <div className="onepage__reached">People reached</div>
-                    <p>
-                      {chosen.length} campaign{chosen.length === 1 ? '' : 's'}
-                      {across && <> across {across}</>} — every figure exactly as recorded.
-                    </p>
-                  </div>
-                </div>
-                <div className="onepage__panels">
-                  {chosen.map((c) => (
-                    <div className="onepage__panel" key={c.id} style={{ background: colourOf(c) }}>
-                      <span className="onepage__meta">{c.isVertical ? c.industry : c.clientType} · {c.date ? fmtMonth(c.date) : '—'}</span>
-                      <span className="onepage__client">{c.client}</span>
-                      <span className="onepage__name">{c.name}</span>
-                      {showBrief && c.objective && <p className="onepage__brief">{c.objective}</p>}
-                      <div className="onepage__figs">
-                        <span><b className={c.reach == null ? "num num--none" : "num"}>{fmt(c.reach)}</b><i>reach</i></span>
-                        {showEng && c.eng !== null && <span className="onepage__eng"><b className={c.eng == null ? "num num--none" : "num"}>{fmt(c.eng)}</b><i>engagement</i></span>}
-                      </div>
-                      {showReport && c.report && (
-                        <a className="onepage__report" href={c.report} target="_blank" rel="noopener noreferrer">
-                          View the report <IconExternal />
-                        </a>
-                      )}
+          <div className="preview__label"><span className="live__dot" /> Live preview · A4, exactly what the client gets</div>
+          <div className="preview__stage" ref={stageRef} style={{ height: sheetH * scale }}>
+            <div className="preview__scaler" style={{ transform: `scale(${scale})` }}>
+              <article
+                ref={pageRef}
+                className={`onepage onepage--n${Math.min(chosen.length, 7)}${chosen.length >= 4 ? ' onepage--dense' : ''}`}
+                style={{ ['--op-accent' as string]: accent }}
+              >
+                <header className="op-head">
+                  <div className="op-head__top">
+                    <a className="op-mark" href={SITE} target="_blank" rel="noopener noreferrer" aria-label="WLDD — wldd.in">
+                      {'WLDD'.split('').map((ch, i) => <span key={i} style={{ color: MARK[i] }}>{ch}</span>)}
+                    </a>
+                    <span className="op-shapes" aria-hidden>
+                      <i className="op-shape op-shape--circle" />
+                      <i className="op-shape op-shape--leaf" />
+                      <i className="op-shape op-shape--square" />
+                      <i className="op-shape op-shape--pill" />
+                    </span>
+                    <div className="op-for">
+                      <span>Prepared for</span>
+                      <b>{preparedFor.trim() || '[Client name]'}</b>
+                      <span>{today}</span>
                     </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="onepage__empty">Pick at least one campaign to build the page.</p>
-            )}
-            <footer className="onepage__foot">
-              <div className="onepage__cta">Let’s build <span>yours.</span></div>
-              <div className="onepage__contact">
-                <div>{name.trim() || '[YOUR NAME]'}</div>
-                <div>{contact.trim() || '[EMAIL] · [PHONE]'}</div>
-              </div>
-              <span className="onepage__site">wldd.in</span>
-            </footer>
-          </article>
+                  </div>
+                  {chosen.length ? (
+                    <>
+                      <div className="op-hero">
+                        <div className={total ? 'op-total' : 'op-total num--none'}>{fmt(total || null)}</div>
+                        <div className="op-hero__side">
+                          <div className="op-hero__label">People reached</div>
+                          <p>
+                            {chosen.length} campaign{chosen.length === 1 ? '' : 's'}
+                            {across && <> across {across}</>}. Every figure exactly as recorded.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="op-stats">
+                        {showEng && <div className="op-stat"><b>{fmt(totalEng || null)}</b><span>Engagement</span></div>}
+                        <div className="op-stat"><b>{chosen.length}</b><span>Campaign{chosen.length === 1 ? '' : 's'}</span></div>
+                        <div className="op-stat"><b>{kinds.length}</b><span>{kinds.length === 1 ? 'Category' : 'Categories'}</span></div>
+                      </div>
+                    </>
+                  ) : null}
+                </header>
+
+                {chosen.length ? (
+                  <section className="op-work">
+                    <div className="op-work__head">
+                      <h2>The work</h2>
+                      <span>Campaigns WLDD has delivered</span>
+                    </div>
+                    <div className="op-grid">
+                      {chosen.map((c, i) => {
+                        const t = TILES[i % TILES.length];
+                        return (
+                          <div className="op-tile" key={c.id} style={{ background: t.bg, color: t.ink }}>
+                            <span className="op-tile__meta">{c.isVertical ? c.industry : c.clientType} · {c.date ? fmtMonth(c.date) : '—'}</span>
+                            <span className="op-tile__client">{c.client}</span>
+                            <span className="op-tile__name">{c.name}</span>
+                            {showBrief && c.objective && <p className="op-tile__brief">{c.objective}</p>}
+                            <div className="op-tile__figs">
+                              <span><b className={c.reach == null ? 'num--none' : undefined}>{fmt(c.reach)}</b><i>Reach</i></span>
+                              {showEng && c.eng !== null && <span className="op-tile__eng"><b>{fmt(c.eng)}</b><i>Engagement</i></span>}
+                            </div>
+                            {showReport && c.report && (
+                              <>
+                                <a className="op-tile__report" href={reportUrl(c.report)} target="_blank" rel="noopener noreferrer"
+                                  style={{ color: t.bg === YELLOW ? INK : t.bg }}>
+                                  View the report <IconExternal />
+                                </a>
+                                {/* printed under the button, for PDF viewers that drop links */}
+                                <span className="onepage__url">{reportUrl(c.report)}</span>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ) : (
+                  <p className="onepage__empty">Pick at least one campaign to build the page.</p>
+                )}
+
+                <footer className="op-cta">
+                  <div className="op-cta__main">
+                    <div className="op-cta__title">Let’s build <span>yours.</span></div>
+                    <p>Organic first campaigns that make your brand at the centre of the attention economy.</p>
+                    <a className="op-cta__btn" href={SITE} target="_blank" rel="noopener noreferrer">
+                      Check our website <span aria-hidden>→</span> wldd.in
+                    </a>
+                  </div>
+                  <div className="op-cta__contact">
+                    <span>Talk to</span>
+                    <b>{name.trim() || '[Your name]'}</b>
+                    <div>{contact.trim() || '[Email] · [Phone]'}</div>
+                    <a href={SITE} target="_blank" rel="noopener noreferrer">www.wldd.in</a>
+                  </div>
+                </footer>
+              </article>
+            </div>
+          </div>
         </section>
       </div>
     </motion.div>
