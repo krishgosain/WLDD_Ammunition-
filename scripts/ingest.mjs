@@ -102,6 +102,23 @@ function parseUrl(raw) {
   } catch { return null; }
 }
 
+/**
+ * Turn a Canva editor URL into its view URL.
+ *
+ * A /design/<id>/<token>/edit link is the one Canva puts on the clipboard from
+ * inside the editor, and it is the one the sheet mostly carries. It refuses
+ * everyone without edit rights on the design — all 29 in the archive answer
+ * 403 to an outsider — while the same design at /view opens for 22 of those 29,
+ * because the deck itself is link-shared. Same document, a link a client can
+ * actually open; anyone with edit rights still gets the edit button from the
+ * view page.
+ */
+function clientReportUrl(url) {
+  if (!url) return url;
+  const m = /^(https?:\/\/(?:www\.)?canva\.com\/design\/[^/]+\/[^/]+)\/edit(?:[?#].*)?$/i.exec(url);
+  return m ? `${m[1]}/view` : url;
+}
+
 /* -------------------------------------------------------------- taxonomies */
 
 const SERVICE_CANON = {
@@ -172,7 +189,7 @@ const body = headerAt > 0 ? lines.slice(headerAt).join('\n') : text;
 const parsed = Papa.parse(body, { header: true, skipEmptyLines: 'greedy' });
 
 const health = {
-  skipped: 0, noReport: 0, noFigures: 0, badDate: 0,
+  skipped: 0, noReport: 0, noFigures: 0, badDate: 0, canvaEditRewritten: 0,
   unclassified: 0, engOverReach: [], duplicatedFigures: [], extremeReach: [],
   unknownServices: new Set(), corrected: [],
 };
@@ -246,7 +263,9 @@ parsed.data.forEach((row, i) => {
   const endDate = parseDate(pick(row, COLS.endDate));
   if (!date) health.badDate++;
 
-  const report = parseUrl(pick(row, COLS.report));
+  const rawReport = parseUrl(pick(row, COLS.report));
+  const report = clientReportUrl(rawReport);
+  if (report !== rawReport) health.canvaEditRewritten++;
   if (!report) health.noReport++;
   if (reach === null && eng === null) health.noFigures++;
 
@@ -407,6 +426,7 @@ L('Engagement > reach', health.engOverReach.length);
 L('Reach === engagement', health.duplicatedFigures.length);
 L('Reach above 2B', health.extremeReach.length);
 L('Figures corrected', health.corrected.length);
+L('Canva edit links → view', health.canvaEditRewritten);
 health.extremeReach.slice(0, 5).forEach((e) =>
   console.log(`      · ${e.label} — sheet reads "${e.raw}"`));
 if (health.unknownServices.size) {

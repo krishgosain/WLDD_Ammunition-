@@ -335,6 +335,15 @@ Enter opens the focused card, the shortfall banner names the real ceiling, the
 palette filters, pitch mode hides internals, the 3D field renders, the theme
 toggles, and a deep link restores the view.
 
+It also prints. The one-pager goes to PDF through the browser's own print
+path, and the print stylesheet hides the board so the page prints alone —
+which used to take the whole app down: the hidden rows measured zero, the
+virtualiser read each zero as a resize, and React gave up on the update loop,
+unmounting the one-pager mid-print and producing a blank 1.2kB PDF. The flow
+now walks kit → builder → print media → PDF and fails if the page is missing,
+if the PDF comes back blank, or if the report links lose their link
+annotations.
+
 ## Keyboard
 
 | | |

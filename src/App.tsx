@@ -22,7 +22,6 @@ import CompareTray, { CompareTable } from './components/CompareTray';
 import CommandPalette from './components/CommandPalette';
 import ClientDossier from './components/ClientDossier';
 import ShortcutHelp from './components/ShortcutHelp';
-import OnePager from './components/OnePager';
 import Backdrop from './components/Backdrop';
 import Skeleton from './components/Skeleton';
 import Segmented from './components/Segmented';
@@ -36,6 +35,8 @@ import './styles/app.css';
 
 // three.js is ~700kB; the board must paint without it.
 const ReachField = lazy(() => import('./components/ReachField'));
+// The one-pager pulls in a QR encoder that nobody browsing the board needs.
+const OnePager = lazy(() => import('./components/OnePager'));
 
 const MAX_COMPARE = 4;
 const THEME_KEY = 'wldd-theme-v2';
@@ -538,10 +539,10 @@ function Ammo({ data }: { data: Dataset }) {
 
       <AnimatePresence>
         {onePager && (
-          <OnePager
+          <Suspense fallback={null}><OnePager
             items={compareItems} colourOf={colourOf}
             onClose={() => setOnePager(false)} onCopy={onCopy}
-          />
+          /></Suspense>
         )}
       </AnimatePresence>
 

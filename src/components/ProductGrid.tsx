@@ -40,10 +40,21 @@ export default function ProductGrid({
   // The list's distance from the top of the document moves whenever anything
   // above it changes height — intent chips, a shortfall banner — so it is
   // re-measured rather than read once.
+  //
+  // Two guards keep this out of an update loop. The board is hidden outright
+  // in print and behind the one-pager, where it has no box at all: measuring
+  // then reads zeros, which re-renders, which the body observer sees as
+  // another resize. And an unchanged measurement must not set state, or the
+  // observer and the render it triggers feed each other forever.
   useLayoutEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    const measure = () => setOffset(el.getBoundingClientRect().top + window.scrollY);
+    const measure = () => {
+      const el = listRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (!r.width && !r.height) return;
+      const next = Math.round(r.top + window.scrollY);
+      setOffset((cur) => (cur === next ? cur : next));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(document.body);
@@ -60,6 +71,25 @@ export default function ProductGrid({
 
   // Density changes every row height at once.
   useEffect(() => { virtual.measure(); }, [density, virtual]);
+
+  /**
+   * Measure a row, but never while the board has no box.
+   *
+   * The print stylesheet hides the board so the one-pager prints alone. Every
+   * mounted row then measures zero, the virtualiser treats each zero as a
+   * resize, and the re-render it schedules re-measures — an update loop that
+   * took the whole app down (React "maximum update depth exceeded") the moment
+   * the browser entered print media, which is exactly when the one-pager had
+   * to survive. Skipping the measurement keeps the last real heights, which
+   * are the ones still wanted when the board comes back on screen.
+   */
+  const measureRow = useCallback((el: HTMLDivElement | null) => {
+    if (el) {
+      const r = el.getBoundingClientRect();
+      if (!r.width && !r.height) return;
+    }
+    virtual.measureElement(el);
+  }, [virtual]);
 
   // A new result set should start at its first row, not wherever the last one
   // ended — but only pull the page up if the reader was already below it.
@@ -132,7 +162,7 @@ export default function ProductGrid({
             <div
               key={c.id}
               data-index={row.index}
-              ref={virtual.measureElement}
+              ref={measureRow}
               className="board__slot"
               style={{
                 position: 'absolute', top: 0, left: 0, width: '100%',

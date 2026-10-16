@@ -2,9 +2,50 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import type { Campaign } from '../lib/types';
 import { fmt, fmtMonth } from '../lib/format';
-import { IconArrowLeft, IconExternal, IconLink, IconPrint } from './Icons';
+import { qrPath } from '../lib/qr';
+import { IconArrowLeft, IconExternal, IconLink, IconPrint, IconWarn } from './Icons';
+
+/**
+ * Hosts whose links a client cannot be assumed to open.
+ *
+ * Measured against the live archive rather than guessed: every Google Drive
+ * link sampled answers 401 to a visitor who is not signed in to a WLDD
+ * account, and Drive is 1,487 of the 1,719 report links. Docs and canva.link
+ * links sampled did open, so they are not flagged — a warning that fires on
+ * working links is a warning nobody reads.
+ *
+ * Only WLDD can clear this: the file itself has to be shared with "anyone with
+ * the link". No change here can grant access the file does not give.
+ */
+const SIGN_IN_HOSTS = ['drive.google.com'];
+
+function reportHost(url: string | null): string | null {
+  if (!url) return null;
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return null; }
+}
+const needsSharing = (url: string | null) => {
+  const h = reportHost(url);
+  return h ? SIGN_IN_HOSTS.some((x) => h === x || h.endsWith(`.${x}`)) : false;
+};
 
 const ACCENTS = ['#E4572E', '#7B61D9', '#2F9E6E', '#E9A23B', '#1C96A2'];
+
+/** The report URL as a scannable code, for the printed and PDF copies. */
+function ReportCode({ url }: { url: string }) {
+  const code = useMemo(() => qrPath(url), [url]);
+  if (!code) return null;
+  return (
+    <svg
+      className="onepage__qr"
+      viewBox={`0 0 ${code.size} ${code.size}`}
+      role="img"
+      aria-label="Scan to open the report"
+    >
+      <rect width={code.size} height={code.size} fill="#fff" />
+      <path d={code.d} fill="#141414" />
+    </svg>
+  );
+}
 
 /**
  * Build one-pager: the pitch kit laid out for the client.
@@ -40,6 +81,7 @@ export default function OnePager({
   }, []);
 
   const chosen = useMemo(() => items.filter((c) => on.includes(c.id)), [items, on]);
+  const walled = useMemo(() => chosen.filter((c) => needsSharing(c.report)), [chosen]);
   const total = chosen.reduce((s, c) => s + (c.reach ?? 0), 0);
   const kinds = [...new Set(chosen.map((c) => (c.isVertical ? c.industry : c.clientType)))];
   const across = kinds.length > 1
@@ -107,6 +149,20 @@ export default function OnePager({
                 <span>{label}</span>
               </label>
             ))}
+            {showReport && walled.length > 0 && (
+              <p className="builder__warn">
+                <IconWarn />
+                <span>
+                  {walled.length === 1
+                    ? '1 of these reports sits on '
+                    : `${walled.length} of these reports sit on `}
+                  {[...new Set(walled.map((c) => reportHost(c.report)))].join(', ')}.
+                  A client gets a sign-in wall unless that file is shared with
+                  “anyone with the link” — set it in Drive before you send this.
+                </span>
+              </p>
+            )}
+
             <div className="builder__h" style={{ marginTop: 6 }}>Accent</div>
             <div className="builder__accents">
               {ACCENTS.map((c) => (
@@ -171,9 +227,16 @@ export default function OnePager({
                         {showEng && c.eng !== null && <span className="onepage__eng"><b className={c.eng == null ? "num num--none" : "num"}>{fmt(c.eng)}</b><i>engagement</i></span>}
                       </div>
                       {showReport && c.report && (
-                        <a className="onepage__report" href={c.report} target="_blank" rel="noopener noreferrer">
-                          View the report <IconExternal />
-                        </a>
+                        <div className="onepage__reportrow">
+                          <a className="onepage__report" href={c.report} target="_blank" rel="noopener noreferrer">
+                            View the report <IconExternal />
+                          </a>
+                          {/* Printed and PDF copies cannot rely on the anchor:
+                              only some print engines keep the link annotation,
+                              and paper keeps none. The QR carries the URL in a
+                              form that survives both. */}
+                          <ReportCode url={c.report} />
+                        </div>
                       )}
                     </div>
                   ))}

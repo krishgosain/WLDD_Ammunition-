@@ -12,7 +12,7 @@ const B = process.argv[2] || 'http://localhost:4173';
 const fails = []; const errs = [];
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium',
   // behind an HTTPS proxy (sandboxed CI), route the font request through it
-  ...(process.env.HTTPS_PROXY ? { proxy: { server: process.env.HTTPS_PROXY, bypass: 'localhost,127.0.0.1' }, args: ['--ignore-certificate-errors'] } : {}) });
+  ...(process.env.HTTPS_PROXY ? { proxy: { server: process.env.HTTPS_PROXY, bypass: '<-loopback>,localhost,127.0.0.1' }, args: ['--ignore-certificate-errors'] } : {}) });
 const p = await b.newPage({ viewport:{width:1500,height:940} });
 p.on('pageerror', e=>{ if(!/THREE is not defined/.test(e.message)) errs.push(e.message); });
 p.on('console', m=>{ if(m.type()==='error' && !/CERT_AUTHORITY|Failed to load resource/.test(m.text())) errs.push(m.text()); });
@@ -149,6 +149,41 @@ await step('search still works end to end', async()=>{
   const clients = await p.locator('.card__client').allInnerTexts();
   A(clients.length>0 && clients.every(c=>/myntra/i.test(c)),'client leak: '+JSON.stringify([...new Set(clients)]));
   console.log('       '+clients.length+' results, all MYNTRA');
+});
+
+await step('the one-pager survives print and carries its links', async()=>{
+  // The whole app used to go down the instant the browser switched to print
+  // media: the print stylesheet hides the board, every virtualised row then
+  // measured zero, and the virtualiser treated each zero as a resize until
+  // React gave up ("maximum update depth exceeded"). The one-pager unmounted
+  // with it and Download PDF produced a blank page, so this walks the real
+  // path — kit, builder, print media, PDF — and checks the links survive.
+  await p.goto(B,{waitUntil:'networkidle'}); await p.waitForSelector('.card');
+  const ids = await p.evaluate(async()=>{
+    const r = await fetch('/data/campaigns.json'); const j = await r.json();
+    const arr = Array.isArray(j) ? j : (j.campaigns ?? j.items ?? []);
+    return arr.filter(c=>c.report).slice(0,3).map(c=>c.id);
+  });
+  A(ids.length===3,'no campaigns with report links to test with');
+  await p.goto(B+'/?cmp='+ids.join('~'),{waitUntil:'networkidle'});
+  await p.waitForSelector('text=Build one-pager',{timeout:15000});
+  await p.click('text=Build one-pager');
+  await p.waitForSelector('.onepager',{timeout:15000});
+  await p.waitForTimeout(1000);
+  A(await p.locator('.onepage__report').count()===3,'report links missing on screen');
+
+  await p.emulateMedia({media:'print'});
+  await p.waitForTimeout(2500);
+  A(await p.locator('.onepager').count()>0,'the one-pager was torn out of the DOM in print');
+  A(await p.locator('.onepage__qr').count()===3,'report codes missing in print');
+
+  const pdf = await p.pdf({format:'A4',printBackground:true});
+  A(pdf.length>20000,'PDF came out blank ('+pdf.length+' bytes)');
+  const txt = pdf.toString('latin1');
+  const links = [...txt.matchAll(/\/Subtype\s*\/Link/g)].length;
+  A(links>=3,'report links are not clickable in the PDF ('+links+' annotations)');
+  await p.emulateMedia({media:'screen'});
+  console.log('       PDF '+Math.round(pdf.length/1024)+'kB, '+links+' live links, 3 codes');
 });
 
 console.log('\nerrors: '+errs.length); errs.slice(0,5).forEach(e=>console.log('  ! '+e.slice(0,160)));
