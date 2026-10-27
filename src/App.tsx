@@ -47,7 +47,15 @@ const ReachField = lazy(() => import('./components/ReachField'));
 // The pitch one-pager is a separate screen; the board should not carry it.
 const OnePager = lazy(() => import('./components/OnePager'));
 
-const MAX_COMPARE = 4;
+/**
+ * How many campaigns a pitch kit holds.
+ *
+ * The one-pager paginates, so this is a judgement about how long a pitch
+ * should be rather than a layout limit: the opening sheet carries the hero
+ * and four campaigns, every sheet after it carries six, and the deck grows
+ * as far as it needs to.
+ */
+const MAX_COMPARE = 15;
 const THEME_KEY = 'wldd-theme-v2';
 const initial = decode(location.search);
 

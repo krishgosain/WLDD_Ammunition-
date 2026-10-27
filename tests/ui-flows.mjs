@@ -191,10 +191,57 @@ await step('Download PDF writes a file whose report links are real', async()=>{
   console.log('       '+dl.suggestedFilename()+' — '+Math.round(pdf.length/1024)+'kB, '+links+' live links');
 });
 
+await step('a 15-campaign kit becomes a multi-page A4 deck', async()=>{
+  // The kit used to hold four. It now holds fifteen, which no longer fits one
+  // sheet, so the one-pager deals itself across A4 pages: the opening sheet
+  // keeps the headline number and four campaigns, every sheet after it takes
+  // six. Each sheet has to stay exactly A4 or the PDF pages come out ragged.
+  const ids = await p.evaluate(async()=>{
+    const r = await fetch('/data/campaigns.json'); const j = await r.json();
+    const arr = Array.isArray(j) ? j : (j.campaigns ?? j.items ?? []);
+    return arr.filter(c=>c.report && c.reach).slice(0,15).map(c=>c.id);
+  });
+  A(ids.length===15,'not enough campaigns with reach and a report to fill a kit');
+  await p.goto(B+'/?cmp='+ids.join('~'),{waitUntil:'networkidle'});
+  await p.waitForSelector('text=Build one-pager',{timeout:15000});
+  await p.click('text=Build one-pager');
+  await p.waitForSelector('.onepage',{timeout:15000});
+  await p.waitForTimeout(1500);
+
+  A(await p.locator('.onepage').count()===3,'expected 3 sheets, got '+await p.locator('.onepage').count());
+  A(await p.locator('.op-tile').count()===15,'not every campaign made it onto a sheet');
+  const heights = await p.locator('.onepage').evaluateAll(els=>els.map(e=>e.offsetHeight));
+  A(heights.every(h=>h===1123),'a sheet is not A4: '+heights.join(', '));
+  A(await p.locator('.op-cta').count()===1,'the closing call to action should appear once, on the last sheet');
+
+  const [dl] = await Promise.all([
+    p.waitForEvent('download',{timeout:120000}),
+    p.click('text=Download PDF'),
+  ]);
+  const pdf = fs.readFileSync(await dl.path());
+  const txt = pdf.toString('latin1');
+  const pages = (txt.match(/\/Type\s*\/Page[^s]/g)||[]).length;
+  const links = (txt.match(/\/Subtype\s*\/Link/g)||[]).length;
+  A(pages===3,'expected a 3-page PDF, got '+pages);
+  A(links>=15,'expected at least 15 link annotations, got '+links);
+  console.log('       '+pages+' A4 pages, '+links+' live links, '+Math.round(pdf.length/1024)+'kB');
+  await p.goto(B,{waitUntil:'networkidle'});
+});
+
 await step('the one-pager survives print media', async()=>{
   // Ctrl+P still has to work. The print stylesheet hides the board, every
   // virtualised row then measured zero, the virtualiser read each zero as a
-  // resize, and React gave up — taking the one-pager down with it.
+  // resize, and React gave up - taking the one-pager down with it.
+  const ids = await p.evaluate(async()=>{
+    const r = await fetch('/data/campaigns.json'); const j = await r.json();
+    const arr = Array.isArray(j) ? j : (j.campaigns ?? j.items ?? []);
+    return arr.filter(c=>c.report).slice(0,3).map(c=>c.id);
+  });
+  await p.goto(B+'/?cmp='+ids.join('~'),{waitUntil:'networkidle'});
+  await p.waitForSelector('text=Build one-pager',{timeout:15000});
+  await p.click('text=Build one-pager');
+  await p.waitForSelector('.onepage',{timeout:15000});
+  await p.waitForTimeout(800);
   await p.emulateMedia({media:'print'});
   await p.waitForTimeout(2500);
   A(await p.locator('.onepager').count()>0,'the one-pager was torn out of the DOM in print');

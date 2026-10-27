@@ -26,6 +26,26 @@ const SHEET_W = 794;
 const SHEET_H = 1123;
 
 /**
+ * How a kit is dealt out across sheets once it stops fitting on one.
+ *
+ * Up to SINGLE campaigns the page keeps its tuned single-sheet layouts, which
+ * stretch the tiles to fill whatever room is left. Past that the deck breaks
+ * into A4 pages: the opening sheet gives most of its height to the headline
+ * number, so it carries fewer campaigns than the ones after it.
+ */
+const SINGLE = 6;
+const FIRST_PAGE = 4;
+const PER_PAGE = 6;
+
+/** Split the kit into one list of campaigns per sheet. */
+function paginate<T>(all: T[]): T[][] {
+  if (all.length <= SINGLE) return [all];
+  const out = [all.slice(0, FIRST_PAGE)];
+  for (let i = FIRST_PAGE; i < all.length; i += PER_PAGE) out.push(all.slice(i, i + PER_PAGE));
+  return out;
+}
+
+/**
  * Build one-pager: the pitch kit laid out for the client.
  *
  * Pitch mode is always on here — leads, status and promise ratios never reach
@@ -67,21 +87,23 @@ export default function OnePager({
     ? `${kinds.slice(0, -1).join(', ')} and ${kinds[kinds.length - 1]}`
     : kinds[0] ?? '';
   const today = fmtMonth(new Date().toISOString().slice(0, 10));
+  const pages = useMemo(() => paginate(chosen), [chosen]);
 
-  const pageRef = useRef<HTMLElement>(null);
+  const sheetRefs = useRef<(HTMLElement | null)[]>([]);
   const stageRef = useRef<HTMLDivElement>(null);
+  const stackRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [sheetH, setSheetH] = useState(SHEET_H);
 
   // Fit the A4 sheet to the preview column; the sheet itself never reflows.
   useEffect(() => {
-    const stage = stageRef.current, page = pageRef.current;
-    if (!stage || !page) return;
+    const stage = stageRef.current, stack = stackRef.current;
+    if (!stage || !stack) return;
     const ro = new ResizeObserver(() => {
       setScale(Math.min(1, stage.clientWidth / SHEET_W));
-      setSheetH(page.offsetHeight);
+      setSheetH(stack.offsetHeight);
     });
-    ro.observe(stage); ro.observe(page);
+    ro.observe(stage); ro.observe(stack);
     return () => ro.disconnect();
   }, []);
   const [busy, setBusy] = useState(false);
@@ -102,29 +124,41 @@ export default function OnePager({
   // on it is written into the PDF as a real link annotation over the spot
   // where it sits — so "View the report" is clickable in any PDF viewer.
   const download = async () => {
-    const el = pageRef.current;
-    if (!el) return;
+    const sheets = sheetRefs.current.filter(Boolean) as HTMLElement[];
+    if (!sheets.length) return;
     setBusy(true);
     try {
       // A font that has not finished loading would be drawn as a fallback.
       if (document.fonts?.ready) await document.fonts.ready;
       const [{ toCanvas }, { jsPDF }] = await Promise.all([import('html-to-image'), import('jspdf')]);
-      const box = el.getBoundingClientRect(); // scaled, like the link boxes below
-      const canvas = await toCanvas(el, {
-        pixelRatio: 2.5, backgroundColor: '#FFFCF6',
-        width: el.offsetWidth, height: el.offsetHeight,
-      });
-      const W = 210; // A4 in mm; a long kit grows the page past 297
-      const H = (W * el.offsetHeight) / el.offsetWidth;
-      const pdf = new jsPDF({ unit: 'mm', format: [W, H], orientation: H >= W ? 'portrait' : 'landscape' });
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, W, H);
-      const k = W / box.width; // box and link rects share the preview's scale
-      el.querySelectorAll<HTMLAnchorElement>('a[href]').forEach((a) => {
-        const r = a.getBoundingClientRect();
-        pdf.link((r.left - box.left) * k, (r.top - box.top) * k, r.width * k, r.height * k, { url: a.href });
-      });
-      pdf.setProperties({ title: fileName });
-      pdf.save(`${fileName}.pdf`);
+      const W = 210; // A4 in mm; a single-sheet kit may grow the page past 297
+      let pdf: InstanceType<typeof jsPDF> | null = null;
+
+      for (const el of sheets) {
+        const box = el.getBoundingClientRect(); // scaled, like the link boxes below
+        const canvas = await toCanvas(el, {
+          pixelRatio: 2.5, backgroundColor: '#FFFCF6',
+          width: el.offsetWidth, height: el.offsetHeight,
+        });
+        const H = (W * el.offsetHeight) / el.offsetWidth;
+        if (!pdf) {
+          pdf = new jsPDF({ unit: 'mm', format: [W, H], orientation: H >= W ? 'portrait' : 'landscape' });
+        } else {
+          // Every sheet after the first is its own page, sized to that sheet —
+          // they are all A4 once the deck paginates, but a one-sheet kit is
+          // free to run long and this keeps both cases honest.
+          pdf.addPage([W, H], H >= W ? 'portrait' : 'landscape');
+        }
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, W, H);
+        const k = W / box.width; // box and link rects share the preview's scale
+        el.querySelectorAll<HTMLAnchorElement>('a[href]').forEach((a) => {
+          const r = a.getBoundingClientRect();
+          pdf!.link((r.left - box.left) * k, (r.top - box.top) * k, r.width * k, r.height * k, { url: a.href });
+        });
+      }
+
+      pdf!.setProperties({ title: fileName });
+      pdf!.save(`${fileName}.pdf`);
     } catch (err) {
       console.warn('PDF build failed, falling back to print', err);
       printPage();
@@ -227,12 +261,25 @@ export default function OnePager({
         <section className="preview" aria-label="One-pager preview">
           <div className="preview__label"><span className="live__dot" /> Live preview · A4, exactly what the client gets</div>
           <div className="preview__stage" ref={stageRef} style={{ height: sheetH * scale }}>
-            <div className="preview__scaler" style={{ transform: `scale(${scale})` }}>
+            <div className="preview__scaler" ref={stackRef} style={{ transform: `scale(${scale})` }}>
+              {pages.map((tiles, pageNo) => {
+                const first = pageNo === 0;
+                const last = pageNo === pages.length - 1;
+                const offset = first ? 0 : FIRST_PAGE + (pageNo - 1) * PER_PAGE;
+                return (
               <article
-                ref={pageRef}
-                className={`onepage onepage--n${Math.min(chosen.length, 7)}${chosen.length >= 4 ? ' onepage--dense' : ''}`}
+                key={pageNo}
+                ref={(el) => { sheetRefs.current[pageNo] = el; }}
+                className={[
+                  'onepage',
+                  `onepage--n${Math.min(tiles.length, 7)}`,
+                  tiles.length >= 4 ? 'onepage--dense' : '',
+                  pages.length > 1 ? 'onepage--paged' : '',
+                  first ? '' : 'onepage--cont',
+                ].filter(Boolean).join(' ')}
                 style={{ ['--op-accent' as string]: accent }}
               >
+                {first ? (
                 <header className="op-head">
                   <div className="op-head__top">
                     <a className="op-mark" href={SITE} target="_blank" rel="noopener noreferrer" aria-label="WLDD — wldd.in">
@@ -270,16 +317,33 @@ export default function OnePager({
                     </>
                   ) : null}
                 </header>
+                ) : (
+                  // Continuation sheets carry the brand and the client, not the
+                  // headline number — it belongs to the deck, not to each page.
+                  <header className="op-head op-head--slim">
+                    <div className="op-head__top">
+                      <a className="op-mark" href={SITE} target="_blank" rel="noopener noreferrer" aria-label="WLDD — wldd.in">
+                        {'WLDD'.split('').map((ch, i) => <span key={i} style={{ color: MARK[i] }}>{ch}</span>)}
+                      </a>
+                      <div className="op-for">
+                        <span>Prepared for</span>
+                        <b>{preparedFor.trim() || '[Client name]'}</b>
+                      </div>
+                    </div>
+                  </header>
+                )}
 
                 {chosen.length ? (
                   <section className="op-work">
-                    <div className="op-work__head">
-                      <h2>The work</h2>
-                      <span>Campaigns WLDD has delivered</span>
-                    </div>
+                    {first && (
+                      <div className="op-work__head">
+                        <h2>The work</h2>
+                        <span>Campaigns WLDD has delivered</span>
+                      </div>
+                    )}
                     <div className="op-grid">
-                      {chosen.map((c, i) => {
-                        const t = TILES[i % TILES.length];
+                      {tiles.map((c, i) => {
+                        const t = TILES[(offset + i) % TILES.length];
                         return (
                           <div className="op-tile" key={c.id} style={{ background: t.bg, color: t.ink }}>
                             <span className="op-tile__meta">{c.isVertical ? c.industry : c.clientType} · {c.date ? fmtMonth(c.date) : '—'}</span>
@@ -309,6 +373,7 @@ export default function OnePager({
                   <p className="onepage__empty">Pick at least one campaign to build the page.</p>
                 )}
 
+                {last && (
                 <footer className="op-cta">
                   <div className="op-cta__main">
                     <div className="op-cta__title">Let’s build <span>yours.</span></div>
@@ -324,7 +389,14 @@ export default function OnePager({
                     <a href={SITE} target="_blank" rel="noopener noreferrer">www.wldd.in</a>
                   </div>
                 </footer>
+                )}
+
+                {pages.length > 1 && (
+                  <div className="op-folio" aria-hidden>{pageNo + 1} / {pages.length}</div>
+                )}
               </article>
+                );
+              })}
             </div>
           </div>
         </section>

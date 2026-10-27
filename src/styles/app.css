@@ -982,6 +982,26 @@ h1, h2, h3, h4, p { margin: 0; }
   box-shadow: 0 50px 100px -50px rgba(31, 26, 20, .45); border-radius: 6px; overflow: hidden;
 }
 .onepage a { text-decoration: none; }
+
+/* ---- A deck of sheets. Once the kit outgrows one page the sheet height is
+       pinned to A4 so every PDF page is the same size, the sheets stack with
+       a gap in the preview, and continuation pages trade the headline number
+       for a slim brand bar. ---- */
+.onepage--paged { height: 1123px; min-height: 0; }
+.onepage--paged + .onepage--paged { margin-top: 28px; }
+.op-head--slim { padding: 18px 36px 16px; }
+.op-head--slim .op-mark { font-size: 30px; }
+.op-head--slim .op-for b { font-size: 20px; }
+.onepage--cont .op-work { padding-top: 20px; }
+/* Continuation sheets carry six tiles in three columns. */
+.onepage--cont .op-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.onepage--cont.onepage--n1 .op-grid,
+.onepage--cont.onepage--n2 .op-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.onepage--cont .op-tile__brief { -webkit-line-clamp: 3; line-clamp: 3; }
+.op-folio {
+  padding: 0 36px 14px; margin-top: auto; align-self: flex-end;
+  font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #9A8C78;
+}
 .onepage .num--none { opacity: .35; }
 
 /* header: the dark brand slab with the headline number */
