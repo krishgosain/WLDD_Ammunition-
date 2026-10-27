@@ -1,5 +1,5 @@
 import { createPublicKey, verify as verifySig } from 'node:crypto';
-import { COOKIE, TTL_SECONDS, allowed, sign } from '../lib/session';
+import { COOKIE, TTL_SECONDS, allowed, sign } from '../../lib/session';
 
 /**
  * Turn a Google sign-in into a session cookie, if the account is WLDD's.

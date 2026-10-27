@@ -29,7 +29,7 @@
     "src",
     "vite.config.ts",
     "lib",
-    "api",
-    "middleware.ts"
+    ".disabled/api",
+    "middleware.ts.disabled"
   ]
 }
