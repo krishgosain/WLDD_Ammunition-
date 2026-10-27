@@ -1,17 +1,17 @@
 /**
- * Probe, on the preview branch only.
+ * Probe 2, preview branch only.
  *
- * The gate fails with MIDDLEWARE_INVOCATION_FAILED and writes no log line at
- * all, which means it never reaches my code — it dies at module load. This
- * strips the file to the smallest thing Vercel's docs say should work: no
- * imports, no config beyond the runtime, one hard-coded response.
- *
- * If this answers, middleware works for this project and the fault is in what
- * the real gate imports. If it 500s, middleware itself is the wrong mechanism
- * here and the gate needs a different shape entirely.
+ * The bare middleware ran, so the mechanism is fine. Both failed versions
+ * shared exactly one import — ./lib/session — and the first of them imported
+ * nothing else, so that file is the suspect. This imports it and nothing
+ * else, and exercises it, so a failure here is unambiguous.
  */
-export default function middleware() {
-  return new Response('gate probe: middleware ran', {
+import { COOKIE, sign, verify } from './lib/session';
+
+export default async function middleware() {
+  const token = await sign('probe@wldd.in', 'probe-secret');
+  const back = await verify(token, 'probe-secret');
+  return new Response(`probe 2: cookie=${COOKIE} signed=${token.slice(0, 12)}… verified=${back?.email}`, {
     status: 200,
     headers: { 'content-type': 'text/plain' },
   });
