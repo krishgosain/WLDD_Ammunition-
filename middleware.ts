@@ -6,7 +6,7 @@
  * nothing else, so that file is the suspect. This imports it and nothing
  * else, and exercises it, so a failure here is unambiguous.
  */
-import { COOKIE, sign, verify } from './lib/session';
+import { COOKIE, sign, verify } from './lib/session.js';
 
 export default async function middleware() {
   const token = await sign('probe@wldd.in', 'probe-secret');
