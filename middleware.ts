@@ -1,3 +1,4 @@
+import { next } from '@vercel/functions';
 import { COOKIE, verify } from './lib/session';
 
 /**
@@ -14,6 +15,13 @@ import { COOKIE, verify } from './lib/session';
  * SESSION_SECRET in the environment the gate steps aside and the site behaves
  * exactly as it did before, so shipping this cannot lock anyone out of a live
  * dashboard; adding those two variables in Vercel is what switches it on.
+ *
+ * It also fails open. Everything below runs in front of every request, so a
+ * mistake in it takes the whole site down rather than one page — which is
+ * exactly what happened the first time this shipped, by returning nothing
+ * where the platform wanted next(). A gate that errors is a gate that stops
+ * the team working, so an unexpected throw lets the request through and says
+ * so in the log rather than serving a 500 to everybody.
  */
 export const config = {
   // Everything except the sign-in endpoints themselves and Vercel's internals.
@@ -23,15 +31,24 @@ export const config = {
 const PUBLIC_PATHS = new Set(['/api/auth', '/api/signout']);
 
 export default async function middleware(request: Request) {
+  try {
+    return await gate(request);
+  } catch (err) {
+    console.error('sign-in gate failed open:', err);
+    return next();
+  }
+}
+
+async function gate(request: Request) {
   const url = new URL(request.url);
-  if (PUBLIC_PATHS.has(url.pathname)) return;
+  if (PUBLIC_PATHS.has(url.pathname)) return next();
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const secret = process.env.SESSION_SECRET;
   const domain = process.env.ALLOWED_EMAIL_DOMAIN || 'wldd.in';
 
   // Not configured yet: behave as though the gate were not here at all.
-  if (!clientId || !secret) return;
+  if (!clientId || !secret) return next();
 
   const cookie = request.headers.get('cookie') ?? '';
   const token = cookie.split(';')
@@ -39,7 +56,7 @@ export default async function middleware(request: Request) {
     .find((c) => c.startsWith(`${COOKIE}=`))
     ?.slice(COOKIE.length + 1);
 
-  if (await verify(token, secret)) return;
+  if (await verify(token, secret)) return next();
 
   // A fetch for data gets a status it can act on; a person gets the door.
   const wantsJson = url.pathname.startsWith('/api/')
