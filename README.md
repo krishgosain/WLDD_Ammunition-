@@ -132,6 +132,41 @@ forged cookie, a cookie signed with another deployment's secret, a correctly
 signed but expired one, lookalike domains, and the requirement that an
 unconfigured gate serves the site untouched.
 
+## Looking inside the reports
+
+Two things need to see inside a report rather than just ping its URL, and
+both need the same credential.
+
+`npm run reports` asks Drive what each report actually is — whether it
+exists, whether it is in the bin, its type and its size — and records the
+empty ones in `data/dead-links.json`, which the ingest already reads as a
+blocklist. The HTTP sweep cannot do this: 1,447 of the reports answer 401 to
+anyone outside WLDD, so from the outside a real deck and a placeholder look
+identical. The judgement is deliberately conservative — missing, binned,
+zero-byte, or too small to hold a report — because wrongly hiding real work
+is the worse error.
+
+`npm run thumbs` opens the best-performing campaigns' reports and takes the
+posts and reels out of them. The sheet has no link to any individual piece of
+content, so this is the only place the work exists. A `.pptx` is a zip and
+its images come out of `ppt/media` untouched; a PDF gives up its embedded
+images through poppler, and when a deck is one flat image per page — an
+exported Canva deck usually is — the pages are rendered instead. Most of what
+comes out is furniture, so anything too small, too thin or too wide to be a
+post is dropped, and what remains is ranked by size with reels first. The
+results land in `public/thumbs/` and `public/data/thumbs.json`, and the client
+dossier shows them under "The work". Both sit behind the sign-in gate, which
+is where client work belongs.
+
+    npm run thumbs -- --top 5 --client "NETFLIX INDIA"
+
+Neither script will run without Drive access, and both say so and change
+nothing rather than half-doing the job. Set `GOOGLE_SERVICE_ACCOUNT_JSON` to
+a service-account key — the same credential shape the sheet fetcher uses —
+and share the report files, or the folder holding them, with that account's
+address. There is no anonymous route: none of the forty best-performing
+reports opens without a login.
+
 ## Daily refresh
 
 The BD Ammo sheet

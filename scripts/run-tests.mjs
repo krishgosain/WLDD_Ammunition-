@@ -22,3 +22,4 @@ execFileSync(process.execPath, ['tests/ingest-stability.mjs'], { stdio: 'inherit
 execFileSync(process.execPath, ['tests/report-link.mjs'], { stdio: 'inherit' });
 execFileSync(process.execPath, ['tests/session.mjs'], { stdio: 'inherit' });
 execFileSync(process.execPath, ['tests/gate.mjs'], { stdio: 'inherit' });
+execFileSync(process.execPath, ['tests/extract.mjs'], { stdio: 'inherit' });

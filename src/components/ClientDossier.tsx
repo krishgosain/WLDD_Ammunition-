@@ -2,6 +2,7 @@ import { useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import type { Campaign, Meta } from '../lib/types';
 import { fmt, fmtExact, fmtMonth } from '../lib/format';
+import { useThumbs } from '../lib/thumbs';
 import { IconClose, IconCopy, IconExternal } from './Icons';
 
 /**
@@ -12,6 +13,47 @@ import { IconClose, IconCopy, IconExternal } from './Icons';
  * the relationship — how long, how big, which services, trending up or down.
  */
 const SPARK = ['#E9A23B', '#2F9E6E', '#1C96A2', '#7B61D9', '#3B5BDB', '#D4508F', '#EE7B30'];
+
+/**
+ * The work itself: posts and reels lifted out of this client's best reports.
+ *
+ * Figures say how far something travelled; they do not show what was made.
+ * These come from the top-performing campaigns, so the strip is the client's
+ * own best work rather than whatever happened to be extractable.
+ *
+ * Nothing renders when no thumbnails have been built — the builder needs
+ * Drive access, and a checkout without it should simply show the dossier it
+ * always showed.
+ */
+function ClientWork({ items }: { items: Campaign[] }) {
+  const best = [...items]
+    .filter((c) => c.reach)
+    .sort((a, b) => (b.reach ?? 0) - (a.reach ?? 0))
+    .slice(0, 6);
+  const thumbs = useThumbs(best.map((c) => c.id), 8);
+  if (!thumbs.length) return null;
+
+  const base = import.meta.env.BASE_URL ?? '/';
+  return (
+    <section className="sec">
+      <h4>The work</h4>
+      <div className="workstrip">
+        {thumbs.map((t) => (
+          <img
+            key={t.file}
+            className={t.h && t.w && t.h > t.w ? 'workstrip__img workstrip__img--reel' : 'workstrip__img'}
+            src={`${base}thumbs/${t.file}`}
+            width={t.w ?? undefined}
+            height={t.h ?? undefined}
+            loading="lazy"
+            alt=""
+          />
+        ))}
+      </div>
+      <p className="hint" style={{ marginTop: 6 }}>From the reports on this client&rsquo;s best campaigns</p>
+    </section>
+  );
+}
 
 export default function ClientDossier({
   name, all, meta, pitch, colourOf, onClose, onOpen, onCopy, onFilter,
@@ -120,6 +162,8 @@ export default function ClientDossier({
               </p>
             </section>
           )}
+
+          <ClientWork items={items} />
 
           <section className="sec">
             <h4>Services used</h4>
