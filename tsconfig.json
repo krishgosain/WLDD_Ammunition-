@@ -29,6 +29,7 @@
     "src",
     "vite.config.ts",
     "lib",
-    "api"
+    "api",
+    "middleware.ts"
   ]
 }
