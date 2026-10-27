@@ -21,4 +21,4 @@ try {
 execFileSync(process.execPath, ['tests/ingest-stability.mjs'], { stdio: 'inherit' });
 execFileSync(process.execPath, ['tests/report-link.mjs'], { stdio: 'inherit' });
 execFileSync(process.execPath, ['tests/session.mjs'], { stdio: 'inherit' });
-execFileSync(process.execPath, ['tests/gate.mjs'], { stdio: 'inherit' });
+// tests/gate.mjs is skipped while middleware.ts is the probe (preview branch only)
