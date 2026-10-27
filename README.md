@@ -48,6 +48,71 @@ keep showing yesterday's campaigns. Revalidation costs nothing — an unchanged
 file answers 304 with no body. Hashed assets under `/assets/` keep the immutable
 year-long cache.
 
+## Signing in (WLDD accounts only)
+
+The archive is client work — names, briefs, figures, report links — so the
+deployment is gated to WLDD Google accounts.
+
+The gate is **edge middleware** (`middleware.ts`), which runs ahead of the
+static files. That placement is the point: the campaign archive is a plain
+JSON file sitting next to the app, so a sign-in screen drawn by the app
+itself would stop nobody — `/data/campaigns.json` is one URL away. The
+middleware covers the page, the bundles and the data with one check.
+
+**It is inert until it is configured.** With no `GOOGLE_CLIENT_ID` and no
+`SESSION_SECRET` set, the gate steps aside and the site behaves exactly as it
+always did, so deploying it cannot lock anyone out. Setting those two
+variables is what switches it on.
+
+### Switching it on
+
+1. **Make the repository private.** Everything below is pointless while the
+   whole dataset is readable on GitHub.
+   *GitHub → Settings → General → Danger Zone → Change visibility → Private.*
+
+2. **Create a Google OAuth client.** In the
+   [Google Cloud console](https://console.cloud.google.com/apis/credentials)
+   for a project on the WLDD Workspace:
+   *Create credentials → OAuth client ID → Web application.*
+   Under **Authorised JavaScript origins** add the site's origin — e.g.
+   `https://wldd-ammunition.vercel.app`, plus any custom domain. Copy the
+   **Client ID** (it ends `.apps.googleusercontent.com`). No client *secret*
+   is needed: the browser only ever hands us an ID token, which the server
+   verifies against Google's published keys.
+
+3. **Set three environment variables in Vercel** — *Project → Settings →
+   Environment Variables*, for Production and Preview:
+
+   | Variable | Value |
+   |---|---|
+   | `GOOGLE_CLIENT_ID` | the client ID from step 2 |
+   | `SESSION_SECRET` | a long random string — `openssl rand -base64 32` |
+   | `ALLOWED_EMAIL_DOMAIN` | `wldd.in` (optional; this is the default) |
+
+4. **Redeploy.** The next visit shows the sign-in door.
+
+Changing `SESSION_SECRET` signs everyone out, which is how you revoke a
+session early. Sessions last 12 hours; signing out is `/api/signout`.
+
+### What is actually checked
+
+`api/auth.ts` does not trust the token the browser hands it. It fetches
+Google's signing keys, verifies the RS256 signature, and then checks the
+issuer, that the token was minted for *this* client ID rather than another
+site's, that it has not expired, that the address is verified, and that
+Google's own `hd` claim says the account belongs to the WLDD Workspace — a
+personal Gmail account that merely spells its address `@wldd.in` has no `hd`
+and does not get in. Only then is a session cookie minted: HttpOnly, Secure,
+SameSite=Lax, signed with HMAC-SHA256.
+
+The failure message never says *which* check failed, since that would tell
+somebody probing what to fix next.
+
+`tests/session.mjs` and `tests/gate.mjs` cover the parts that matter: a
+forged cookie, a cookie signed with another deployment's secret, a correctly
+signed but expired one, lookalike domains, and the requirement that an
+unconfigured gate serves the site untouched.
+
 ## Daily refresh
 
 The BD Ammo sheet
