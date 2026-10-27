@@ -20,10 +20,8 @@ const stub = path.join(dir, 'vercel-functions.mjs');
 fs.writeFileSync(stub, `export const next = () =>
   new Response(null, { status: 200, headers: { 'x-middleware-next': '1' } });\n`);
 
-// The gate is parked as .disabled while it is proven against a real
-// deployment, so esbuild is pointed at it by path and told it is TypeScript.
-await build({ entryPoints: ['middleware.ts.disabled'], bundle: true, platform: 'neutral',
-  format: 'esm', outfile: out, logLevel: 'error', loader: { '.disabled': 'ts' },
+await build({ entryPoints: ['middleware.ts'], bundle: true, platform: 'neutral',
+  format: 'esm', outfile: out, logLevel: 'error',
   alias: { '@vercel/functions': stub } });
 const sessOut = path.join(dir, 'session.mjs');
 await build({ entryPoints: ['lib/session.ts'], bundle: true, platform: 'neutral',

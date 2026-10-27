@@ -1,4 +1,4 @@
-import { COOKIE } from '../../lib/session';
+import { COOKIE } from '../lib/session.js';
 
 /** Drop the session cookie. */
 type Res = { status(c: number): Res; setHeader(n: string, v: string): void; json(b: unknown): void };

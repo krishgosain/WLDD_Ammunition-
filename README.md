@@ -91,6 +91,12 @@ variables is what switches it on.
 
 4. **Redeploy.** The next visit shows the sign-in door.
 
+Relative imports in `middleware.ts` and `api/` name their `.js` extension on
+purpose. `package.json` sets `"type": "module"`, so Vercel resolves these as
+strict ESM and an extensionless `./lib/session` is simply not found — the
+module dies at load and every request to the deployment answers 500 with no
+log line at all. That took the site down once; the extension is not optional.
+
 Changing `SESSION_SECRET` signs everyone out, which is how you revoke a
 session early. Sessions last 12 hours; signing out is `/api/signout`.
 

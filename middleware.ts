@@ -1,5 +1,5 @@
 import { next } from '@vercel/functions';
-import { COOKIE, verify } from './lib/session';
+import { COOKIE, verify } from './lib/session.js';
 
 /**
  * The gate. Nothing in this deployment is served to someone who has not
@@ -16,6 +16,12 @@ import { COOKIE, verify } from './lib/session';
  * exactly as it did before, so shipping this cannot lock anyone out of a live
  * dashboard; adding those two variables in Vercel is what switches it on.
  *
+ * Relative imports here name their extension. package.json sets
+ * "type": "module", so the platform resolves this file as strict ESM and an
+ * extensionless './lib/session' is simply not found — the module dies at load
+ * with no log line at all, which is a miserable thing to debug and is exactly
+ * what took the site down once.
+ *
  * It also fails open. Everything below runs in front of every request, so a
  * mistake in it takes the whole site down rather than one page — which is
  * exactly what happened the first time this shipped, by returning nothing
@@ -24,10 +30,21 @@ import { COOKIE, verify } from './lib/session';
  * so in the log rather than serving a 500 to everybody.
  */
 export const config = {
-  // Everything except the sign-in endpoints themselves and Vercel's internals.
-  matcher: ['/((?!api/auth|api/signout|_vercel|favicon).*)'],
+  // Node, explicitly. The gate verifies an HMAC and reads the environment, and
+  // leaving the runtime to be inferred is one more thing that can differ
+  // between here and the platform.
+  runtime: 'nodejs',
 };
 
+/**
+ * Paths the gate must never hold, or signing in becomes impossible: the
+ * handler that mints the session, and the one that clears it.
+ *
+ * This is deliberately done in code rather than with a config matcher. A
+ * matcher is the one part of this file that cannot be exercised by a test —
+ * it is interpreted by the platform — so the exclusions live where the tests
+ * can see them.
+ */
 const PUBLIC_PATHS = new Set(['/api/auth', '/api/signout']);
 
 export default async function middleware(request: Request) {
