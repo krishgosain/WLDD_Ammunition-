@@ -24,10 +24,21 @@ import { COOKIE, verify } from './lib/session';
  * so in the log rather than serving a 500 to everybody.
  */
 export const config = {
-  // Everything except the sign-in endpoints themselves and Vercel's internals.
-  matcher: ['/((?!api/auth|api/signout|_vercel|favicon).*)'],
+  // Node, explicitly. The gate verifies an HMAC and reads the environment, and
+  // leaving the runtime to be inferred is one more thing that can differ
+  // between here and the platform.
+  runtime: 'nodejs',
 };
 
+/**
+ * Paths the gate must never hold, or signing in becomes impossible: the
+ * handler that mints the session, and the one that clears it.
+ *
+ * This is deliberately done in code rather than with a config matcher. A
+ * matcher is the one part of this file that cannot be exercised by a test —
+ * it is interpreted by the platform — so the exclusions live where the tests
+ * can see them.
+ */
 const PUBLIC_PATHS = new Set(['/api/auth', '/api/signout']);
 
 export default async function middleware(request: Request) {
