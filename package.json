@@ -12,7 +12,8 @@
     "build": "npm run ingest && tsc --noEmit && npm test && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/run-tests.mjs"
+    "test": "node scripts/run-tests.mjs",
+    "links": "node scripts/check-links.mjs"
   },
   "dependencies": {
     "@fontsource/anton": "^5.3.0",

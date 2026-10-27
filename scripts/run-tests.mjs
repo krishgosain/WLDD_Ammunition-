@@ -19,3 +19,4 @@ try {
 
 // Plain JS, so it runs directly rather than through the bundler.
 execFileSync(process.execPath, ['tests/ingest-stability.mjs'], { stdio: 'inherit' });
+execFileSync(process.execPath, ['tests/report-link.mjs'], { stdio: 'inherit' });

@@ -20,6 +20,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Papa from 'papaparse';
+import { checkReportLink } from './lib/report-link.mjs';
+
+/**
+ * Links a sweep has proved are gone: the document 404s to everyone, so the
+ * link is dead rather than merely private. Produced by `npm run links`, which
+ * is deliberately a separate step — the daily refresh stays offline, fast and
+ * deterministic, and never fails because a host rate-limited it.
+ */
+const DEAD_LINKS = (() => {
+  const file = new URL('../data/dead-links.json', import.meta.url);
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return new Map(Object.entries(raw.links ?? {}).map(([u, why]) => [u, why]));
+  } catch { return new Map(); }
+})();
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -189,7 +204,7 @@ const body = headerAt > 0 ? lines.slice(headerAt).join('\n') : text;
 const parsed = Papa.parse(body, { header: true, skipEmptyLines: 'greedy' });
 
 const health = {
-  skipped: 0, noReport: 0, noFigures: 0, badDate: 0, canvaEditRewritten: 0,
+  skipped: 0, noReport: 0, noFigures: 0, badDate: 0, canvaEditRewritten: 0, rejectedReports: [],
   unclassified: 0, engOverReach: [], duplicatedFigures: [], extremeReach: [],
   unknownServices: new Set(), corrected: [],
 };
@@ -264,8 +279,23 @@ parsed.data.forEach((row, i) => {
   if (!date) health.badDate++;
 
   const rawReport = parseUrl(pick(row, COLS.report));
-  const report = clientReportUrl(rawReport);
+  let report = clientReportUrl(rawReport);
   if (report !== rawReport) health.canvaEditRewritten++;
+  // A link that does not name a document never reaches the dashboard. The row
+  // keeps its figures — those are real — but a client cannot be handed a link
+  // to the Canva home page, so the campaign shows as having no report until
+  // the sheet is fixed.
+  if (report) {
+    const verdict = checkReportLink(report);
+    const dead = DEAD_LINKS.get(report);
+    if (!verdict.ok) {
+      health.rejectedReports.push({ label: `${client} — ${name}`, url: report, reason: verdict.reason });
+      report = null;
+    } else if (dead) {
+      health.rejectedReports.push({ label: `${client} — ${name}`, url: report, reason: dead });
+      report = null;
+    }
+  }
   if (!report) health.noReport++;
   if (reach === null && eng === null) health.noFigures++;
 
@@ -427,6 +457,20 @@ L('Reach === engagement', health.duplicatedFigures.length);
 L('Reach above 2B', health.extremeReach.length);
 L('Figures corrected', health.corrected.length);
 L('Canva edit links → view', health.canvaEditRewritten);
+L('Report links rejected', health.rejectedReports.length);
+if (health.rejectedReports.length) {
+  const byReason = new Map();
+  for (const r of health.rejectedReports) {
+    if (!byReason.has(r.reason)) byReason.set(r.reason, []);
+    byReason.get(r.reason).push(r);
+  }
+  console.log('\n  Report links that do not point at a document');
+  console.log('  (the campaign still counts; it just shows no report until the sheet is fixed)');
+  for (const [reason, list] of [...byReason].sort((a, b) => b[1].length - a[1].length)) {
+    console.log(`    ${reason} — ${list.length}`);
+    for (const r of list) console.log(`      · ${r.label}\n        ${r.url}`);
+  }
+}
 health.extremeReach.slice(0, 5).forEach((e) =>
   console.log(`      · ${e.label} — sheet reads "${e.raw}"`));
 if (health.unknownServices.size) {
