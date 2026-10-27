@@ -60,8 +60,11 @@ async function gate(request: Request) {
   const url = new URL(request.url);
   if (PUBLIC_PATHS.has(url.pathname)) return next();
 
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const secret = process.env.SESSION_SECRET;
+  // PREVIEW PROBE ONLY — reverted before this reaches production. Supplies a
+  // throwaway client id and secret so the configured path runs on a real
+  // deployment without putting anything in the project's environment.
+  const clientId = process.env.GOOGLE_CLIENT_ID ?? 'probe.apps.googleusercontent.com';
+  const secret = process.env.SESSION_SECRET ?? 'probe-secret-not-for-production';
   const domain = process.env.ALLOWED_EMAIL_DOMAIN || 'wldd.in';
 
   // Not configured yet: behave as though the gate were not here at all.
