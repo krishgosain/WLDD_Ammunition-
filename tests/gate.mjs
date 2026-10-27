@@ -99,6 +99,35 @@ check('the session is found among other cookies',
 const broken = await middleware({ url: 'not a url', headers: { get: () => null } });
 check('a gate that throws lets the request through', wentThrough(broken));
 
+// --- the shared-password stopgap ------------------------------------------
+// It must gate just as hard as Google mode, and Google must win when both are
+// configured, so switching Google on closes the password door by itself.
+delete process.env.GOOGLE_CLIENT_ID;
+process.env.SESSION_SECRET = SECRET;
+process.env.TEAM_PASSWORD = 'a-shared-password';
+
+const pwDoor = await middleware(req('/', { accept: 'text/html' }));
+check('password mode gates the site', blocked(pwDoor));
+const pwHtml = await pwDoor.text();
+check('password mode shows the password door', pwHtml.includes('Enter the team password'));
+check('password mode says it is temporary', pwHtml.toLowerCase().includes('temporary'));
+check('password mode does not load Google sign-in', !pwHtml.includes('accounts.google.com/gsi'));
+check('password mode still refuses the data', blocked(await middleware(req('/data/campaigns.json'))));
+check('a session still opens the door in password mode',
+  wentThrough(await middleware(req('/', cookie(await sign('team@wldd.in', SECRET))))));
+
+process.env.GOOGLE_CLIENT_ID = '1234.apps.googleusercontent.com';
+const bothHtml = await (await middleware(req('/', { accept: 'text/html' }))).text();
+check('Google wins when both are configured', bothHtml.includes('accounts.google.com/gsi'));
+check('the password door is gone once Google is on', !bothHtml.includes('Enter the team password'));
+
+// A password alone, with no secret to sign with, must not half-open the gate.
+delete process.env.GOOGLE_CLIENT_ID;
+delete process.env.SESSION_SECRET;
+check('a password without a signing secret leaves the gate inert',
+  wentThrough(await middleware(req('/'))));
+delete process.env.TEAM_PASSWORD;
+
 configure(false);
 fails.forEach((f) => console.log(`  FAIL ${f}`));
 console.log(`  ${pass} passed, ${fails.length} failed`);
