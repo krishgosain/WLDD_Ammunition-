@@ -64,6 +64,19 @@ middleware covers the page, the bundles and the data with one check.
 always did, so deploying it cannot lock anyone out. Setting those two
 variables is what switches it on.
 
+### If the Google client is not ready yet
+
+Creating the OAuth client needs the Google Workspace console. Until that is
+done the archive can still be closed with a single shared password: set
+`SESSION_SECRET` and `TEAM_PASSWORD` in Vercel and redeploy, and the gate
+asks for the password instead.
+
+It is a stopgap and the door says so on its face. A shared password cannot
+tell one person from another, cannot be revoked for one of them, and travels
+by WhatsApp. Setting `GOOGLE_CLIENT_ID` closes that door automatically —
+Google wins whenever both are configured — so switching Google on is the
+whole migration.
+
 ### Switching it on
 
 1. **Make the repository private.** Everything below is pointless while the

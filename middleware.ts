@@ -62,10 +62,18 @@ async function gate(request: Request) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const secret = process.env.SESSION_SECRET;
+  const password = process.env.TEAM_PASSWORD;
   const domain = process.env.ALLOWED_EMAIL_DOMAIN || 'wldd.in';
 
+  // Two ways in, and Google wins when both are set up. The shared password
+  // exists because creating a Google client needs the Workspace console,
+  // which is not always to hand, and an archive of client work sitting open
+  // on a public URL while that is arranged is the worse trade. It knows who
+  // nobody is, so it is a stopgap and the door says so.
+  const mode = secret && clientId ? 'google' : secret && password ? 'password' : null;
+
   // Not configured yet: behave as though the gate were not here at all.
-  if (!clientId || !secret) return next();
+  if (!mode) return next();
 
   const cookie = request.headers.get('cookie') ?? '';
   const token = cookie.split(';')
@@ -73,7 +81,7 @@ async function gate(request: Request) {
     .find((c) => c.startsWith(`${COOKIE}=`))
     ?.slice(COOKIE.length + 1);
 
-  if (await verify(token, secret)) return next();
+  if (await verify(token, secret!)) return next();
 
   // A fetch for data gets a status it can act on; a person gets the door.
   const wantsJson = url.pathname.startsWith('/api/')
@@ -87,26 +95,14 @@ async function gate(request: Request) {
     });
   }
 
-  return new Response(signInPage(clientId, domain), {
-    status: 401,
-    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
-  });
+  return new Response(
+    mode === 'google' ? signInPage(clientId!, domain) : passwordPage(domain),
+    { status: 401, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } },
+  );
 }
 
-/**
- * The door: a single self-contained page, served by the gate rather than
- * built into the app, so none of the app's own bundles or data are handed to
- * someone who has not signed in yet.
- */
-function signInPage(clientId: string, domain: string) {
-  return `<!doctype html>
-<html lang="en" data-theme="light">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WLDD Ammo</title>
-<link rel="preconnect" href="https://accounts.google.com">
-<style>
+/** One look for both doors, so the stopgap does not feel like a different site. */
+const DOOR_STYLE = `<style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
   body {
@@ -133,6 +129,89 @@ function signInPage(clientId: string, domain: string) {
     p { color: #B8AB97; }
   }
 </style>
+<style>
+  .pw {
+    width: 100%; height: 46px; padding: 0 14px; border-radius: 12px; margin-bottom: 10px;
+    border: 1px solid #DED4C3; background: #fff; color: #131313; font-size: 15px;
+  }
+  .pw:focus { outline: 2px solid #8B7CFF; outline-offset: 1px; }
+  .go {
+    width: 100%; height: 46px; border: 0; border-radius: 999px; cursor: pointer;
+    background: #131313; color: #FFF8EC; font-size: 14px; font-weight: 600;
+  }
+  .go:hover { background: #2a2a2a; }
+  .note { margin-top: 16px; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: #9A8C78; }
+  @media (prefers-color-scheme: dark) {
+    .pw { background: #131313; border-color: #3a3a3a; color: #FFF8EC; }
+    .go { background: #FFF8EC; color: #131313; }
+  }
+</style>`;
+
+/**
+ * The stopgap door: one password for the team.
+ *
+ * Deliberately plain about what it is. A shared password cannot tell one
+ * person from another and cannot be revoked for one of them, so it is worth
+ * saying on the page itself that this is temporary — otherwise it quietly
+ * becomes permanent.
+ */
+function passwordPage(domain: string) {
+  return `<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WLDD Ammo</title>
+${DOOR_STYLE}
+</head>
+<body>
+  <main class="card">
+    <div class="mark"><span>W</span><span>L</span><span>D</span><span>D</span></div>
+    <div class="sub">Ammo</div>
+    <p>The campaign archive is for the ${domain} team. Enter the team password to continue.</p>
+    <form id="f" autocomplete="on">
+      <input id="pw" class="pw" type="password" name="password" placeholder="Team password"
+             aria-label="Team password" autocomplete="current-password" autofocus>
+      <button class="go" type="submit">Open the archive</button>
+    </form>
+    <div class="err" id="err" role="alert"></div>
+    <div class="note">Temporary, until Google sign-in is switched on.</div>
+  </main>
+  <script>
+    document.getElementById('f').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var err = document.getElementById('err');
+      err.textContent = 'Checking…';
+      fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ password: document.getElementById('pw').value })
+      }).then(function (r) {
+        return r.json().then(function (b) { return { ok: r.ok, b: b }; });
+      }).then(function (out) {
+        if (out.ok) { location.reload(); return; }
+        err.textContent = (out.b && out.b.error) || 'That password was not right.';
+      }).catch(function () { err.textContent = 'Could not reach the sign-in service.'; });
+    });
+  </script>
+</body>
+</html>`;
+}
+
+/**
+ * The door: a single self-contained page, served by the gate rather than
+ * built into the app, so none of the app's own bundles or data are handed to
+ * someone who has not signed in yet.
+ */
+function signInPage(clientId: string, domain: string) {
+  return `<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WLDD Ammo</title>
+<link rel="preconnect" href="https://accounts.google.com">
+${DOOR_STYLE}
 </head>
 <body>
   <main class="card">

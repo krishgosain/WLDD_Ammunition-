@@ -69,6 +69,14 @@ async function claimsFrom(idToken: string, clientId: string): Promise<Claims> {
   return claims;
 }
 
+/** Compare two strings without leaking where they first differ. */
+function sameString(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 export default async function handler(req: Req, res: Res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' });
@@ -77,13 +85,36 @@ export default async function handler(req: Req, res: Res) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const secret = process.env.SESSION_SECRET;
+  const teamPassword = process.env.TEAM_PASSWORD;
   const domain = process.env.ALLOWED_EMAIL_DOMAIN || 'wldd.in';
-  if (!clientId || !secret) {
+  if (!secret || (!clientId && !teamPassword)) {
     res.status(500).json({ error: 'sign-in is not configured on this deployment' });
     return;
   }
 
-  const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) as { credential?: string } | undefined;
+  type Body = { credential?: string; password?: string } | undefined;
+  const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) as Body;
+
+  // The shared-password stopgap. Compared in constant time so the answer
+  // cannot be found one character at a time, and only honoured when Google
+  // sign-in is not configured, so turning Google on closes this door.
+  if (!clientId && teamPassword) {
+    if (!body?.password) {
+      res.status(400).json({ error: 'no password' });
+      return;
+    }
+    if (!sameString(body.password, teamPassword)) {
+      res.status(401).json({ error: 'That password was not right.' });
+      return;
+    }
+    const value = await sign(`team@${domain}`, secret);
+    res.setHeader('Set-Cookie',
+      `${COOKIE}=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${TTL_SECONDS}`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(200).json({ ok: true });
+    return;
+  }
+
   const credential = body?.credential;
   if (!credential) {
     res.status(400).json({ error: 'no credential' });
@@ -92,7 +123,7 @@ export default async function handler(req: Req, res: Res) {
 
   let claims: Claims;
   try {
-    claims = await claimsFrom(credential, clientId);
+    claims = await claimsFrom(credential, clientId!);
   } catch {
     // Never echo the reason: it tells someone probing exactly which check to
     // work around next.
