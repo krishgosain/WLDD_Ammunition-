@@ -414,10 +414,35 @@ Three decisions decide who appears, and all three are load-bearing:
   the opposite of cold, so no threshold ever reaches them.
 - **Recency is measured across the whole archive, never the filtered view.**
   A client is not cold because the current search hides their recent work.
+- **One company is one row.** The sheet is typed by hand, so the same client
+  arrives spelled differently — and with different client ids, which hides the
+  duplication from everything downstream. "BIGBANGSOCIAL" last worked in
+  September 2025 while "Big Bang Social" worked in May 2026; split, the list
+  said to ring a client who was perfectly active. The ingest now folds
+  spellings that differ only by case, spacing or punctuation, which is
+  provable. Names needing a word dropped to match — "Sociohub" against
+  "Sociohub Media" — are a judgement about whether two companies are one, so
+  they are reported for a person to settle rather than merged.
+
+The rungs run 1 to 11 months, then **1 year**, **18 months** and **2 years +**.
+Each length of silence is offered once: "12 months" and "1 year" would be the
+same threshold wearing two labels, so only the year appears. The last rung is
+open-ended because a threshold already means "this long or longer".
 
 Months are counted by calendar rather than in thirty-day blocks, since "three
 months" means three months to the person reading it, and short months are
-clamped so 31 March minus one month is 28 February.
+clamped so 31 March minus one month is 28 February. The cutoff day itself
+counts as having been seen: at three months on 30 October, work dated 30 July
+is inside the window and 29 July is not.
+
+"Today" is the reader's calendar date pinned to UTC midnight. A `new Date()`
+carries a local time, and reading its UTC parts in Delhi before 5:30am would
+give yesterday — a silent one-day shift in every boundary. The suite passes
+identically from UTC-8 to UTC+14.
+
+Nothing is listed at two years yet, because the archive only starts in
+February 2025 and nobody can be quiet for longer than the records go. The
+empty state says so, so an honest "nobody" does not read as a broken filter.
 
 ## Views
 

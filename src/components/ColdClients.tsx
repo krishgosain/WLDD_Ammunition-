@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { Campaign } from '../lib/types';
-import { coldClients, coldCsv } from '../lib/revive';
+import { COLD_STEPS, coldClients, coldCsv } from '../lib/revive';
 import { fmt, fmtMonth } from '../lib/format';
 import { IconDownload } from './Icons';
 
@@ -14,6 +14,10 @@ import { IconDownload } from './Icons';
  * Recency is measured across the whole archive, never the filtered view. A
  * client is not cold because the current filter hides their recent work.
  */
+/** The ladder's own wording for a threshold, so the page never invents its own. */
+const stepLabel = (months: number) =>
+  COLD_STEPS.find((s) => s.months === months)?.label ?? `${months} months`;
+
 /** How long they have been quiet, read the way someone would say it. */
 function quietFor(months: number): string {
   if (months < 12) return `${months}m`;
@@ -38,12 +42,29 @@ export default function ColdClients({
     campaigns: rows.reduce((s, r) => s + r.campaigns, 0),
   }), [rows]);
 
+  /**
+   * How far back the archive itself goes.
+   *
+   * An empty list at two years is a true answer when the records only start
+   * eighteen months ago, but on screen it reads as a broken filter. Saying
+   * where the data runs out is the difference between "nobody" and "nobody
+   * could be".
+   */
+  const earliest = useMemo(() => {
+    let first = '';
+    for (const c of all) {
+      const d = c.date || c.endDate;
+      if (d && (!first || d < first)) first = d;
+    }
+    return first;
+  }, [all]);
+
   const download = () => {
     const blob = new Blob([coldCsv(rows)], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `WLDD dead clients - ${months} month${months === 1 ? '' : 's'}.csv`;
+    a.download = `WLDD dead clients - ${stepLabel(months)}.csv`;
     // The download attribute is only honoured on an anchor that is in the
     // document; detached, the file arrives named "download".
     document.body.appendChild(a);
@@ -58,7 +79,7 @@ export default function ColdClients({
         <div>
           <h2 className="cold__title">Dead clients</h2>
           <p className="cold__sub">
-            Nothing from them in <b>{months} month{months === 1 ? '' : 's'}</b>
+            Nothing from them in <b>{stepLabel(months)}</b>
             {rows.length > 0 && <> · {fmt(totals.reach)} reach across {totals.campaigns} past campaigns</>}
           </p>
         </div>
@@ -71,8 +92,8 @@ export default function ColdClients({
               aria-label="Months of silence"
               onChange={(e) => onMonths(Number(e.target.value))}
             >
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                <option key={m} value={m}>{m} month{m === 1 ? '' : 's'}</option>
+              {COLD_STEPS.map((s) => (
+                <option key={s.months} value={s.months}>{s.label}</option>
               ))}
             </select>
           </label>
@@ -85,7 +106,16 @@ export default function ColdClients({
       {rows.length === 0 ? (
         <div className="empty">
           <h3>Nobody has gone quiet</h3>
-          <p>Every client has worked with WLDD inside the last {months} month{months === 1 ? '' : 's'}, or has work booked ahead.</p>
+          <p>
+            Every client has worked with WLDD inside the last {stepLabel(months)}, or has work
+            booked ahead.
+          </p>
+          {earliest && (
+            <p className="hint" style={{ marginTop: 10 }}>
+              The archive starts in {fmtMonth(earliest)}, so no client can be quiet for much
+              longer than that yet — this rung fills up as the records get deeper.
+            </p>
+          )}
         </div>
       ) : (
         <>

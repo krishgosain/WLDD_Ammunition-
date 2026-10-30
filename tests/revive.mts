@@ -6,13 +6,13 @@
  * started long ago but only finished last week, a client with work booked for
  * next year, and the month boundaries themselves.
  */
-import { coldClients, coldCsv, monthsBefore } from '../src/lib/revive';
+import { COLD_STEPS, coldClients, coldCsv, coldStep, monthsBefore, startOfDay } from '../src/lib/revive';
 import type { Campaign } from '../src/lib/types';
 
 let pass = 0; const fails: string[] = [];
 const check = (name: string, cond: boolean) => { if (cond) pass++; else fails.push(name); };
 
-const NOW = new Date('2026-10-30T00:00:00Z');
+const NOW = new Date(2026, 9, 30);   // local 30 Oct, whatever the machine's zone
 
 const campaign = (over: Partial<Campaign>): Campaign => ({
   id: Math.random().toString(36).slice(2), client: 'X', clientId: '1', name: 'c',
@@ -26,11 +26,11 @@ const campaign = (over: Partial<Campaign>): Campaign => ({
 console.log('\nCold clients');
 
 // --- the month boundary ---------------------------------------------------
-check('one month back from 30 Oct is 30 Sep', monthsBefore(NOW, 1).toISOString().slice(0, 10) === '2026-09-30');
-check('twelve months back is a year', monthsBefore(NOW, 12).toISOString().slice(0, 10) === '2025-10-30');
+check('one month back from 30 Oct is 30 Sep', monthsBefore(startOfDay(NOW), 1).toISOString().slice(0, 10) === '2026-09-30');
+check('twelve months back is a year', monthsBefore(startOfDay(NOW), 12).toISOString().slice(0, 10) === '2025-10-30');
 // 31 March minus one month must not land in March again.
 check('a short month is clamped, not overflowed',
-  monthsBefore(new Date('2026-03-31T00:00:00Z'), 1).toISOString().slice(0, 10) === '2026-02-28');
+  monthsBefore(startOfDay(new Date(2026, 2, 31)), 1).toISOString().slice(0, 10) === '2026-02-28');
 console.log('  ok   month arithmetic is by calendar, and clamps short months');
 
 // --- who is cold ----------------------------------------------------------
@@ -97,6 +97,50 @@ check('the csv has a header and a row per client', csv.split('\n').length === ra
 check('the csv quotes a field holding a comma',
   coldCsv([{ ...ranked[0], name: 'A, B' }]).includes('"A, B"'));
 console.log('  ok   csv exports for working the list outside the tool');
+
+
+// --- the rungs on offer ---------------------------------------------------
+const months = COLD_STEPS.map((s) => s.months);
+check('every rung is a different length of silence', new Set(months).size === months.length);
+check('the rungs only ever get longer', months.every((m, i) => i === 0 || m > months[i - 1]));
+check('a year is offered once, as a year', COLD_STEPS.filter((s) => s.months === 12).length === 1
+  && COLD_STEPS.find((s) => s.months === 12)!.label === '1 year');
+check('there is no "12 months" saying the same thing', !COLD_STEPS.some((s) => s.label === '12 months'));
+check('two years is open ended', COLD_STEPS.at(-1)!.months === 24 && COLD_STEPS.at(-1)!.label === '2 years +');
+check('a rung off the ladder falls back', coldStep(7) === 7 && coldStep(13) === 3 && coldStep('x') === 3 && coldStep(0) === 3);
+console.log(`  ok   ${COLD_STEPS.length} rungs, none repeating a length: ${COLD_STEPS.map((s) => s.label).join(', ')}`);
+
+// --- the longest rungs actually select ------------------------------------
+const spread = [
+  campaign({ client: 'EIGHTEEN', date: '2025-03-01' }),   // ~19 months
+  campaign({ client: 'THREE YEARS', date: '2023-09-01' }),
+  campaign({ client: 'FOURTEEN', date: '2025-08-01' }),   // ~14 months
+];
+const at = (m: number) => coldClients(spread, m, NOW).map((r) => r.name).sort();
+check('one year catches everything older than a year', at(12).length === 3);
+check('eighteen months drops the fourteen-month client', at(18).join() === 'EIGHTEEN,THREE YEARS');
+check('two years keeps only what is older than two', at(24).join() === 'THREE YEARS');
+console.log(`  ok   1 year → ${at(12).length}, 18 months → ${at(18).length}, 2 years + → ${at(24).length}`);
+
+// --- the boundary day itself ----------------------------------------------
+// At three months on 30 October the cutoff is 30 July. That day counts as
+// seen; the day before does not.
+check('the cutoff day counts as seen',
+  coldClients([campaign({ client: 'ON THE DAY', date: '2026-07-30' })], 3, NOW).length === 0);
+check('the day before the cutoff is cold',
+  coldClients([campaign({ client: 'DAY BEFORE', date: '2026-07-29' })], 3, NOW).length === 1);
+console.log('  ok   the boundary is inclusive of the cutoff day, and only that day');
+
+// --- the same answer wherever the reader is -------------------------------
+// startOfDay reads local calendar parts, so a date built from local parts is
+// the same day no matter what the machine's timezone is.
+const localNoon = new Date(2026, 9, 30, 12, 0, 0);
+const localEarly = new Date(2026, 9, 30, 0, 30, 0);
+check('time of day never moves the boundary',
+  startOfDay(localNoon).getTime() === startOfDay(localEarly).getTime());
+check('a long day and an early morning give the same list',
+  coldClients(spread, 12, localEarly).length === coldClients(spread, 12, localNoon).length);
+console.log('  ok   the hour of the day cannot shift who is listed');
 
 fails.forEach((f) => console.log(`  FAIL ${f}`));
 console.log(`  ${pass} passed, ${fails.length} failed`);

@@ -209,12 +209,29 @@ const health = {
   unknownServices: new Set(), corrected: [],
 };
 
-/** LICIOUS / Licious are one client — fold case, keep the most common spelling. */
+/**
+ * LICIOUS / Licious / BIGBANGSOCIAL / Big Bang Social are one client.
+ *
+ * Folding case alone is not enough: the sheet is typed by hand, so the same
+ * company arrives spaced differently as well as cased differently, and the
+ * sheet gives those spellings different client ids, which means nothing
+ * downstream can tell they are one company. Left split, a client looks
+ * quieter than they are — "BIGBANGSOCIAL" last worked in September 2025 while
+ * "Big Bang Social" worked in May 2026 — and the dead-client list says to ring
+ * someone who is perfectly active.
+ *
+ * Only spacing, punctuation and case are folded. That class is provable: the
+ * names are the same string once the typing is removed. Anything needing a
+ * word dropped to match — "Sociohub" against "Sociohub Media", "Outbrand
+ * solutions" against "Outbrand Solutions LLP" — is a judgement about whether
+ * two companies are one, and is left alone and reported instead.
+ */
+const spellingKey = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '') || name.toLowerCase();
 const spellings = new Map();
 for (const row of parsed.data) {
   const c = tidy(pick(row, COLS.client));
   if (!c) continue;
-  const k = c.toLowerCase();
+  const k = spellingKey(c);
   if (!spellings.has(k)) spellings.set(k, new Map());
   const m = spellings.get(k);
   m.set(c, (m.get(c) ?? 0) + 1);
@@ -226,6 +243,28 @@ for (const [k, m] of spellings) {
     b[1] - a[1] || (a[0] === a[0].toUpperCase() ? 1 : -1))[0][0];
   canonClient.set(k, best);
 }
+
+/**
+ * Spellings that look like one company but cannot be proved to be.
+ *
+ * These need a word dropped to match, which is a judgement about whether two
+ * companies are the same rather than a typo to fold away. Guessing wrong
+ * merges two real clients and hides one of them, so they are reported for a
+ * human to settle in the sheet instead.
+ */
+const NOISE = /\b(pvt|private|limited|ltd|llp|inc|co|company|media|solutions|digital|network|group)\b/g;
+const nearDuplicates = (() => {
+  const loose = new Map();
+  for (const [, m] of spellings) {
+    for (const name of m.keys()) {
+      const k = name.toLowerCase().replace(NOISE, '').replace(/[^a-z0-9]/g, '');
+      if (k.length < 5) continue;   // too little left to be evidence of anything
+      if (!loose.has(k)) loose.set(k, new Set());
+      loose.get(k).add(canonClient.get(spellingKey(name)) ?? name);
+    }
+  }
+  return [...loose.values()].filter((set) => set.size > 1).map((set) => [...set]);
+})();
 
 const campaigns = [];
 parsed.data.forEach((row, i) => {
@@ -313,7 +352,7 @@ parsed.data.forEach((row, i) => {
 
   campaigns.push({
     id: `c${i}`,
-    client: canonClient.get(client.toLowerCase()) ?? client ?? '—',
+    client: canonClient.get(spellingKey(client)) ?? client ?? '—',
     clientId: tidy(pick(row, COLS.clientId)),
     name: name || 'Untitled campaign',
     objective,
@@ -457,6 +496,12 @@ L('Reach === engagement', health.duplicatedFigures.length);
 L('Reach above 2B', health.extremeReach.length);
 L('Figures corrected', health.corrected.length);
 L('Canva edit links → view', health.canvaEditRewritten);
+L('Clients maybe duplicated', nearDuplicates.length);
+if (nearDuplicates.length) {
+  console.log('\n  Client names that may be the same company');
+  console.log('  (not merged — only a person can say; fix the sheet and they fold together)');
+  for (const pair of nearDuplicates) console.log(`    · ${pair.join('   vs   ')}`);
+}
 L('Report links rejected', health.rejectedReports.length);
 if (health.rejectedReports.length) {
   const byReason = new Map();

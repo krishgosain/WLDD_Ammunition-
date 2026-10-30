@@ -37,6 +37,48 @@ export interface ColdClient {
 const DAY = 86_400_000;
 
 /**
+ * The rungs the filter offers, and the only values it accepts.
+ *
+ * There is exactly one way to express each length of silence. "12 months" and
+ * "1 year" would be the same threshold wearing two labels, so only the year
+ * is offered; the same reasoning puts a single rung at two years rather than
+ * both "24 months" and "2 years".
+ *
+ * The last rung is open-ended on purpose: a threshold is already "this long
+ * or longer", so two years is two years and more, and the label says so
+ * rather than implying a ceiling that does not exist.
+ */
+export const COLD_STEPS: ReadonlyArray<{ months: number; label: string }> = [
+  ...Array.from({ length: 11 }, (_, i) => ({ months: i + 1, label: `${i + 1} month${i ? 's' : ''}` })),
+  { months: 12, label: '1 year' },
+  { months: 18, label: '18 months' },
+  { months: 24, label: '2 years +' },
+];
+
+/** The default rung: long enough to mean something, short enough to act on. */
+export const COLD_DEFAULT = 3;
+
+/** A threshold the filter actually offers, or the default. */
+export function coldStep(value: unknown): number {
+  const n = Number(value);
+  return COLD_STEPS.some((s) => s.months === n) ? n : COLD_DEFAULT;
+}
+
+/**
+ * The caller's calendar date, pinned to midnight UTC.
+ *
+ * Everything downstream compares against dates the ingest wrote as plain ISO
+ * days, which are read as UTC midnight. A `new Date()` carries both a local
+ * time and a timezone, so reading its UTC parts in Delhi before 5:30am gives
+ * yesterday — a silent one-day shift in every boundary. Taking the local
+ * calendar parts and pinning them to UTC keeps "today" the day the person
+ * reading the screen thinks it is.
+ */
+export function startOfDay(from: Date = new Date()): Date {
+  return new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate()));
+}
+
+/**
  * The date N whole months before `from`.
  *
  * Done by calendar rather than by multiplying days, because "three months"
@@ -71,7 +113,8 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
  * narrowed set would otherwise answer with clients who are perfectly active
  * in work the filter happens to exclude.
  */
-export function coldClients(all: Campaign[], months: number, now = new Date()): ColdClient[] {
+export function coldClients(all: Campaign[], months: number, asOf: Date = new Date()): ColdClient[] {
+  const now = startOfDay(asOf);
   const cutoff = monthsBefore(now, months);
   const byClient = new Map<string, Campaign[]>();
   for (const c of all) {
@@ -91,7 +134,9 @@ export function coldClients(all: Campaign[], months: number, now = new Date()): 
     }
     if (!last) continue;                       // nothing dated: nothing to say
     const lastDate = new Date(`${last}T00:00:00Z`);
-    if (lastDate >= cutoff) continue;          // seen inside the window
+    // The cutoff day itself counts as having been seen: at three months on
+    // 30 October, work dated 30 July is inside the window and 29 July is not.
+    if (lastDate >= cutoff) continue;
 
     out.push({
       name,
@@ -116,13 +161,13 @@ export function coldClients(all: Campaign[], months: number, now = new Date()): 
 
 /** The cold list as a CSV, for working through outside the tool. */
 export function coldCsv(rows: ColdClient[]): string {
-  const head = ['Client', 'Last worked', 'Months cold', 'Campaigns', 'Reach', 'Engagement', 'Last campaign', 'Lead', 'Industries', 'Services'];
+  const head = ['Client', 'Last worked', 'Months cold', 'Days cold', 'Campaigns', 'Reach', 'Engagement', 'Last campaign', 'Lead', 'Industries', 'Services'];
   const cell = (v: string | number) => {
     const s = String(v ?? '');
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lines = rows.map((r) => [
-    r.name, r.last, r.monthsCold, r.campaigns, r.reach, r.eng,
+    r.name, r.last, r.monthsCold, r.daysCold, r.campaigns, r.reach, r.eng,
     r.lastCampaign, r.lead, r.industries.join(' · '), r.services.join(' · '),
   ].map(cell).join(','));
   return [head.join(','), ...lines].join('\n');

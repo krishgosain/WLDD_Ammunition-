@@ -163,5 +163,3 @@ export type SortKey =
 
 export type View = 'grid' | 'field' | 'revive';
 
-/** How many months of silence makes a client cold. The filter offers 1–12. */
-export const COLD_MONTHS_DEFAULT = 3;
