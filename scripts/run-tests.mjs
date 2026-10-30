@@ -5,17 +5,17 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 
-const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'wldd-')), 'suite.mjs');
-await build({
-  entryPoints: ['tests/search.test.mts'],
-  bundle: true, platform: 'node', format: 'esm',
-  outfile: out, logLevel: 'error',
-});
-try {
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wldd-'));
+for (const entry of ['tests/search.test.mts', 'tests/revive.mts']) {
+  const out = path.join(tmp, `${path.basename(entry, path.extname(entry))}.mjs`);
+  await build({
+    entryPoints: [entry],
+    bundle: true, platform: 'node', format: 'esm',
+    outfile: out, logLevel: 'error',
+  });
   execFileSync(process.execPath, [out], { stdio: 'inherit' });
-} finally {
-  fs.rmSync(path.dirname(out), { recursive: true, force: true });
 }
+fs.rmSync(tmp, { recursive: true, force: true });
 
 // Plain JS, so it runs directly rather than through the bundler.
 execFileSync(process.execPath, ['tests/ingest-stability.mjs'], { stdio: 'inherit' });

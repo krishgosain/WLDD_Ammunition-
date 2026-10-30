@@ -44,6 +44,8 @@ import './styles/app.css';
 
 // three.js is ~700kB; the board must paint without it.
 const ReachField = lazy(() => import('./components/ReachField'));
+// The call list is a screen of its own; the board does not need it loaded.
+const ColdClients = lazy(() => import('./components/ColdClients'));
 // The pitch one-pager is a separate screen; the board should not carry it.
 const OnePager = lazy(() => import('./components/OnePager'));
 
@@ -155,6 +157,7 @@ function Ammo({ data }: { data: Dataset }) {
   const [filters, setFilters] = useState<Filters>(initial.filters);
   const [sort, setSort] = useState<SortKey>(initial.sort);
   const [view, setView] = useState<View>(initial.view);
+  const [coldMonths, setColdMonths] = useState<number>(initial.coldMonths);
   const [pitch, setPitch] = useState(initial.pitch);
   const [openId, setOpenId] = useState<string | null>(initial.open);
   const [dossier, setDossier] = useState<string | null>(initial.client);
@@ -210,8 +213,8 @@ function Ammo({ data }: { data: Dataset }) {
   );
 
   const state = useMemo(
-    () => ({ q: query, filters, sort, view, pitch, open: openId, client: dossier, compare }),
-    [query, filters, sort, view, pitch, openId, dossier, compare],
+    () => ({ q: query, filters, sort, view, coldMonths, pitch, open: openId, client: dossier, compare }),
+    [query, filters, sort, view, coldMonths, pitch, openId, dossier, compare],
   );
 
   // The URL always describes the screen, so any view can be pasted into Slack.
@@ -387,23 +390,26 @@ function Ammo({ data }: { data: Dataset }) {
 
         <main className="main">
           <div className="toolbar">
-            <h2 className="board__title">Departures</h2>
-            <p className="count">
-              {result.items.length
-                ? <><strong className="num">{result.items.length}</strong>{' '}
-                    {result.items.length === 1 ? 'campaign' : 'campaigns'}</>
-                : 'Nothing matched'}
-              {result.poolSize !== result.items.length && result.poolSize > 0 && !shortfall && (
-                <> of <span className="num">{result.poolSize}</span> in scope</>
-              )}
-            </p>
+            <h2 className="board__title">{view === 'revive' ? 'Gone quiet' : 'Departures'}</h2>
+            {/* The call list counts clients, not campaigns, and says so itself. */}
+            {view !== 'revive' && (
+              <p className="count">
+                {result.items.length
+                  ? <><strong className="num">{result.items.length}</strong>{' '}
+                      {result.items.length === 1 ? 'campaign' : 'campaigns'}</>
+                  : 'Nothing matched'}
+                {result.poolSize !== result.items.length && result.poolSize > 0 && !shortfall && (
+                  <> of <span className="num">{result.poolSize}</span> in scope</>
+                )}
+              </p>
+            )}
             <div className="toolbar__spacer" />
 
             <Segmented
               label="View"
               value={view}
               onChange={setView}
-              options={[['grid', 'Board'], ['field', 'Field']]}
+              options={[['grid', 'Board'], ['field', 'Field'], ['revive', 'Dead clients']]}
             />
 
             {view === 'grid' && (
@@ -437,7 +443,7 @@ function Ammo({ data }: { data: Dataset }) {
             ceiling is named, then the best of what exists is shown with its
             true figures.
           */}
-          {shortfall && (
+          {view !== 'revive' && shortfall && (
             <div className="shortfall" role="status">
               <span className="shortfall__icon"><IconWarn /></span>
               <div>
@@ -456,7 +462,7 @@ function Ammo({ data }: { data: Dataset }) {
 
           {/* Broad matches are shown only when nothing tighter exists, and
               never without saying so. */}
-          {widened && !shortfall && result.items.length > 0 && (
+          {view !== 'revive' && widened && !shortfall && result.items.length > 0 && (
             <div className="shortfall shortfall--info" role="status">
               <span className="shortfall__icon"><IconWarn /></span>
               <div>
@@ -481,6 +487,20 @@ function Ammo({ data }: { data: Dataset }) {
           {view === 'field' && (
             <Suspense fallback={<div className="field"><div className="empty"><p>Loading the field…</p></div></div>}>
               <ReachField items={result.items} colourOf={colourOf} onPick={(c) => setOpenId(c.id)} />
+            </Suspense>
+          )}
+          {/* The call list answers a question about clients rather than
+              campaigns, so it reads the whole archive: a client is not cold
+              because the current search happens to hide their recent work. */}
+          {view === 'revive' && (
+            <Suspense fallback={<div className="cold"><div className="empty"><p>Working out who has gone quiet…</p></div></div>}>
+              <ColdClients
+                all={ALL}
+                months={coldMonths}
+                onMonths={setColdMonths}
+                onOpenClient={(name) => setDossier(name)}
+                onCopy={onCopy}
+              />
             </Suspense>
           )}
         </main>

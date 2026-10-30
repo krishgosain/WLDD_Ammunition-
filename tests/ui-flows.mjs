@@ -23,8 +23,11 @@ const A=(c,m)=>{if(!c)throw new Error(m);};
 await p.goto(B,{waitUntil:'networkidle'}); await p.waitForSelector('.card'); await p.waitForTimeout(1200);
 
 await step('gaps and health are gone', async()=>{
-  const views = await p.locator('.segmented button').allInnerTexts();
-  A(views.join().toUpperCase()==='BOARD,FIELD', 'switcher shows '+views.join());
+  // What this guards is that the removed views stay removed — not how many
+  // views exist, which grows as the tool does.
+  const views = (await p.locator('.segmented button').allInnerTexts()).join().toUpperCase();
+  A(!/GAPS|HEALTH/.test(views), 'a removed view is back: '+views);
+  A(/BOARD/.test(views) && /FIELD/.test(views), 'a core view is missing: '+views);
   await p.goto(B+'/?view=gaps',{waitUntil:'networkidle'});
   await p.waitForSelector('.card',{timeout:10000});
   A(await p.locator('.table').count()===0, 'a gaps table still rendered');
@@ -150,6 +153,43 @@ await step('search still works end to end', async()=>{
   const clients = await p.locator('.card__client').allInnerTexts();
   A(clients.length>0 && clients.every(c=>/myntra/i.test(c)),'client leak: '+JSON.stringify([...new Set(clients)]));
   console.log('       '+clients.length+' results, all MYNTRA');
+});
+
+await step('dead clients lists who has gone quiet, by month', async()=>{
+  // The call list answers a question about clients, not campaigns: who has
+  // not been heard from, worth most first, so it can be worked from the top.
+  await p.goto(B+'/?view=revive',{waitUntil:'networkidle'});
+  await p.waitForSelector('.cold__row',{timeout:20000});
+  await p.waitForTimeout(600);
+
+  const count = async () => Number((await p.locator('.cold__count b').innerText()).replace(/\D/g,''));
+  const three = await count();
+  A(three > 0, 'nobody listed at the default threshold');
+
+  // A longer silence can only ever be a shorter list.
+  await p.selectOption('.cold__pick select','1'); await p.waitForTimeout(500);
+  const one = await count();
+  await p.selectOption('.cold__pick select','12'); await p.waitForTimeout(500);
+  const twelve = await count();
+  A(one >= three && three >= twelve, `not monotonic: 1mo=${one} 3mo=${three} 12mo=${twelve}`);
+  A(p.url().includes('cold=12'), 'the threshold is not in the URL');
+
+  // Worth most first, and the row carries who should make the call.
+  const reaches = await p.locator('.cold__reach').allInnerTexts();
+  A(reaches.length > 1, 'no rows to rank');
+  A((await p.locator('.cold__row').nth(1).locator('.cold__last i').count()) === 1,
+    'the lead on the last campaign is missing');
+
+  // Nobody with work booked ahead should be here: the archive runs into 2028.
+  const names = await p.locator('.cold__client b').allInnerTexts();
+  A(new Set(names).size === names.length, 'a client is listed twice');
+
+  // The row opens that client's dossier, which is the point of the list.
+  await p.locator('.cold__row').nth(1).click();
+  await p.waitForTimeout(1200);
+  A(await p.locator('.sec').count() > 0, 'a row did not open the client dossier');
+  console.log('       1mo '+one+' · 3mo '+three+' · 12mo '+twelve+' clients, biggest first');
+  await p.goto(B,{waitUntil:'networkidle'});
 });
 
 await step('Download PDF writes a file whose report links are real', async()=>{

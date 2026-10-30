@@ -1,4 +1,5 @@
 import type { Filters, SortKey, View } from './types';
+import { COLD_MONTHS_DEFAULT } from './types';
 import { EMPTY_FILTERS } from './types';
 
 /**
@@ -11,6 +12,8 @@ export interface AppState {
   filters: Filters;
   sort: SortKey;
   view: View;
+  /** Months of silence for the dead-client list; only meaningful in that view. */
+  coldMonths: number;
   pitch: boolean;
   open: string | null;
   client: string | null;
@@ -26,6 +29,12 @@ const SHORT: Record<string, string> = {
   engMin: 'emin', yearFrom: 'yf', yearTo: 'yt',
 };
 
+/** 1 to 12 months, or the default when the link says something else. */
+function coldFrom(raw: string | null): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= 12 ? n : COLD_MONTHS_DEFAULT;
+}
+
 export function encode(s: AppState): string {
   const p = new URLSearchParams();
   if (s.q.trim()) p.set('q', s.q.trim());
@@ -34,6 +43,7 @@ export function encode(s: AppState): string {
   if (s.filters.hasReport) p.set('rep', '1');
   if (s.sort !== 'relevance') p.set('sort', s.sort);
   if (s.view !== 'grid') p.set('view', s.view);
+  if (s.view === 'revive' && s.coldMonths !== COLD_MONTHS_DEFAULT) p.set('cold', String(s.coldMonths));
   if (s.pitch) p.set('pitch', '1');
   if (s.open) p.set('open', s.open);
   if (s.client) p.set('dossier', s.client);
@@ -43,7 +53,7 @@ export function encode(s: AppState): string {
 }
 
 const SORTS: SortKey[] = ['relevance', 'reach', 'engagement', 'recent', 'oldest', 'deliverables'];
-const VIEWS: View[] = ['grid', 'field'];
+const VIEWS: View[] = ['grid', 'field', 'revive'];
 
 export function decode(searchStr: string): AppState {
   const p = new URLSearchParams(searchStr);
@@ -66,6 +76,7 @@ export function decode(searchStr: string): AppState {
     filters,
     sort: sort && SORTS.includes(sort) ? sort : 'relevance',
     view: view && VIEWS.includes(view) ? view : 'grid',
+    coldMonths: coldFrom(p.get('cold')),
     pitch: p.get('pitch') === '1',
     open: p.get('open'),
     client: p.get('dossier'),

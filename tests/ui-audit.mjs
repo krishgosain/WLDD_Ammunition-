@@ -22,6 +22,7 @@ const VIEWS = [
   ['pitch', '/?pitch=1&q=netflix'],
   ['compare', '/?cmp=c0~c18~c99'],
   ['dossier', '/?dossier=AMAZON'],
+  ['dead clients', '/?view=revive&cold=6'],
   ['detail', '/?open=c0'],
 ];
 const SIZES = [[1600, 1000], [1280, 860], [900, 800], [390, 844]];

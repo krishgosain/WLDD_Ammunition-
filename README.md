@@ -391,6 +391,34 @@ computed by this app rather than read from the sheet: past 100× it collapses to
 
 ---
 
+## Dead clients
+
+A third view beside Board and Field: the clients who have gone quiet, with a
+dropdown from one month to twelve. Pick two months and it answers "who has
+not worked with us since August" — a call list rather than a report.
+
+It is ordered by what each client was worth, not by how long they have been
+silent, because a cold client worth 1.7B is a different phone call from one
+worth 20k and the list is meant to be worked from the top. Each row carries
+the last campaign and the lead who ran it, so it is obvious who should make
+the call, and clicking a row opens that client's dossier. **Export list**
+writes the whole thing to CSV.
+
+Three decisions decide who appears, and all three are load-bearing:
+
+- **Recency uses start dates *and* end dates.** A campaign that began in
+  February and ran until last week is not silence. Taking only start dates
+  would declare live clients dead.
+- **Work booked ahead counts as alive.** The archive holds campaigns dated
+  into 2028 and 68 clients have one. A client with something in the diary is
+  the opposite of cold, so no threshold ever reaches them.
+- **Recency is measured across the whole archive, never the filtered view.**
+  A client is not cold because the current search hides their recent work.
+
+Months are counted by calendar rather than in thirty-day blocks, since "three
+months" means three months to the person reading it, and short months are
+clamped so 31 March minus one month is 28 February.
+
 ## Views
 
 - **Board** — "Departures": a virtualised list of rows, sorted by match, reach,
