@@ -183,7 +183,23 @@ await step('the filters narrow the dead-client list', async()=>{
   // Every row shows why it qualified, so a filtered row never looks wrong.
   const cats = await p.locator('.cold__client i').allInnerTexts();
   A(cats.slice(0,5).every((c)=>/OTT/.test(c)), 'a filtered row does not show the matching category: '+cats.slice(0,5));
-  console.log('       all '+everyone+' → OTT '+ott+', each row showing its category');
+  // The number beside a filter has to be the list you get by ticking it, in
+  // the unit on screen. The rail counts campaigns on the board, which beside
+  // "266 clients to call" reads as a promise it cannot keep.
+  const chip = p.locator('.chipopt').filter({ hasText: 'Amplification' }).first();
+  const promised = Number((await chip.locator('.chipopt__n').innerText()).trim());
+  await p.goto(B+'/?view=revive&cold=6',{waitUntil:'networkidle'});
+  await p.waitForSelector('.cold__row',{timeout:20000}); await p.waitForTimeout(900);
+  const amp = p.locator('.chipopt').filter({ hasText: 'Amplification' }).first();
+  const said = Number((await amp.locator('.chipopt__n').innerText()).trim());
+  A(said <= everyone, `a filter promises ${said} from a list of ${everyone}`);
+  await amp.click();
+  await p.waitForTimeout(1400);
+  A(await count() === said, `rail said ${said}, ticking it gave ${await count()}`);
+  const others = await p.locator('.chipopt .chipopt__n').allInnerTexts();
+  A(others.some((n) => Number(n) > 0), 'the sibling counts collapsed once one was ticked');
+  console.log('       all '+everyone+' → OTT '+ott+'; Amplification '+said+' and ticking it gives '+said);
+  void promised;
   await p.goto(B,{waitUntil:'networkidle'});
 });
 

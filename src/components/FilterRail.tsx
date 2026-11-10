@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Campaign, Filters, Query, FacetKey, Meta } from '../lib/types';
-import { facetCounts } from '../lib/search';
+import { facetCounts, inScope } from '../lib/search';
+import { coldFacetCounts } from '../lib/revive';
 import { parseInput, fmt } from '../lib/format';
 import { SERIES, industryColour } from '../lib/taxonomy';
 
@@ -96,7 +97,7 @@ function Facet({
 }
 
 export default function FilterRail({
-  all, meta, query, filters, pitch, open, onPatch, onReset,
+  all, meta, query, filters, pitch, open, coldMonths, onPatch, onReset,
 }: {
   all: Campaign[];
   meta: Meta;
@@ -104,17 +105,37 @@ export default function FilterRail({
   filters: Filters;
   pitch: boolean;
   open: boolean;
+  /** Months of silence when the call list is on screen, else null. */
+  coldMonths: number | null;
   onPatch: (p: Partial<Filters>) => void;
   onReset: () => void;
 }) {
-  const counts = useMemo(() => ({
-    industries: facetCounts(all, query, filters, 'industries'),
-    services: facetCounts(all, query, filters, 'services'),
-    clients: facetCounts(all, query, filters, 'clients'),
-    clientTypes: facetCounts(all, query, filters, 'clientTypes'),
-    statuses: facetCounts(all, query, filters, 'statuses'),
-    leads: facetCounts(all, query, filters, 'leads'),
-  }), [all, query, filters]);
+  /**
+   * Counts in the unit the screen is actually showing.
+   *
+   * On the board a facet counts campaigns. On the call list that is the wrong
+   * unit — "446 clients to call" beside "Amplification 1,709" reads as a
+   * promise the filter cannot keep — so each value counts the clients that
+   * would remain if it were ticked.
+   *
+   * Either way the facet's own selections are dropped before counting, so
+   * ticking one value does not zero the numbers beside its siblings.
+   */
+  const counts = useMemo(() => {
+    const of = (facet: FacetKey) => {
+      if (coldMonths === null) return facetCounts(all, query, filters, facet);
+      const relaxed: Filters = { ...filters, [facet]: [] };
+      return coldFacetCounts(all, coldMonths, facet, (c) => inScope(c, query, relaxed));
+    };
+    return {
+      industries: of('industries'),
+      services: of('services'),
+      clients: of('clients'),
+      clientTypes: of('clientTypes'),
+      statuses: of('statuses'),
+      leads: of('leads'),
+    };
+  }, [all, query, filters, coldMonths]);
 
   const toggle = (facet: FacetKey, value: string) => {
     const cur = filters[facet];

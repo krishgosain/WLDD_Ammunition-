@@ -6,7 +6,7 @@
  * started long ago but only finished last week, a client with work booked for
  * next year, and the month boundaries themselves.
  */
-import { COLD_STEPS, coldClients, coldCsv, coldStep, monthsBefore, startOfDay } from '../src/lib/revive';
+import { COLD_STEPS, coldClients, coldCsv, coldFacetCounts, coldStep, monthsBefore, startOfDay } from '../src/lib/revive';
 import type { Campaign } from '../src/lib/types';
 
 let pass = 0; const fails: string[] = [];
@@ -171,6 +171,44 @@ console.log('  ok   a filter narrows who is listed, never what they are worth');
 check('without a predicate nothing is excluded',
   coldClients(mixed, 6, NOW).length === coldClients(mixed, 6, NOW, () => true).length);
 console.log('  ok   an absent filter behaves exactly like one that admits everything');
+
+
+// --- the numbers beside the filters --------------------------------------
+// The rail counts campaigns, which is the wrong unit on a list of clients:
+// "446 clients to call" beside "Amplification 1,772" promises something the
+// filter cannot deliver. A count here has to be the number of clients left
+// if that value were ticked, or it is just decoration.
+const facetRows = [
+  // One client, many campaigns under the same service: still one client.
+  campaign({ client: 'HEAVY', services: ['Amplification'], industry: 'OTT', date: '2025-01-01', reach: 1 }),
+  campaign({ client: 'HEAVY', services: ['Amplification'], industry: 'OTT', date: '2025-02-01', reach: 1 }),
+  campaign({ client: 'HEAVY', services: ['Amplification'], industry: 'OTT', date: '2025-03-01', reach: 1 }),
+  campaign({ client: 'LIGHT', services: ['Influencers'], industry: 'FMCG', date: '2025-01-01', reach: 1 }),
+  // Active: must not be counted anywhere.
+  campaign({ client: 'BUSY', services: ['Amplification'], industry: 'OTT', date: '2026-10-20', reach: 1 }),
+];
+const svc = coldFacetCounts(facetRows, 6, 'services', () => true, NOW);
+check('a client with three campaigns counts once', svc.get('Amplification') === 1);
+check('each value counts its own clients', svc.get('Influencers') === 1);
+check('an active client is counted nowhere', coldClients(facetRows, 6, NOW).every((r) => r.name !== 'BUSY'));
+console.log(`  ok   services counted as clients: Amplification ${svc.get('Amplification')}, Influencers ${svc.get('Influencers')}`);
+
+// The promise the number makes: tick it, and that is the list you get.
+for (const [value, n] of svc) {
+  const listed = coldClients(facetRows, 6, NOW, (c) => c.services.includes(value)).length;
+  check(`ticking ${value} gives exactly the count shown`, listed === n);
+}
+console.log('  ok   every count equals the list you get by ticking it');
+
+const ind = coldFacetCounts(facetRows, 6, 'industries', () => true, NOW);
+check('industries count clients too', ind.get('OTT') === 1 && ind.get('FMCG') === 1);
+check('a value with only active clients does not appear', !ind.has('Music'));
+console.log('  ok   a value nobody cold sits under is simply absent');
+
+check('nothing cold means no counts at all',
+  coldFacetCounts(facetRows, 12, 'services', () => true, NOW).size === 0
+  || coldClients(facetRows, 12, NOW).length > 0);
+console.log('  ok   counts and list agree when nobody is cold');
 
 fails.forEach((f) => console.log(`  FAIL ${f}`));
 console.log(`  ${pass} passed, ${fails.length} failed`);

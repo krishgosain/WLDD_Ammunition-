@@ -422,6 +422,14 @@ Three decisions decide who appears, and all three are load-bearing:
   is the judgement the list exists to inform. Each row names the client's
   categories, commonest first, so a row that qualified on one campaign does
   not look like a mistake.
+- **The counts beside the filters are in the unit on screen.** A facet counts
+  campaigns on the board and clients here. "446 clients to call" beside
+  "Amplification 1,772" reads as a promise the filter cannot keep, so in this
+  view each value counts the clients that would remain if it were ticked —
+  tick Amplification and the list is exactly the number that was shown. A
+  client with five amplification campaigns counts once, and a facet's own
+  selections are dropped before counting so its siblings do not fall to zero
+  as soon as one is ticked.
 - **One company is one row.** The sheet is typed by hand, so the same client
   arrives spelled differently — and with different client ids, which hides the
   duplication from everything downstream. "BIGBANGSOCIAL" last worked in

@@ -1,4 +1,5 @@
-import type { Campaign } from './types';
+import type { Campaign, FacetKey } from './types';
+import { facetValues } from './search';
 
 /**
  * Which clients have gone quiet.
@@ -204,3 +205,43 @@ export function coldCsv(rows: ColdClient[]): string {
 }
 
 export { iso as isoDate };
+
+/**
+ * How many cold clients sit behind each value of a facet.
+ *
+ * The rail counts campaigns, which is the right unit on the board and the
+ * wrong one here: a list of 446 clients beside a filter reading "Amplification
+ * 1,709" invites the reader to think the filter will leave 1,709 of something.
+ * These counts answer the question the number appears to be answering — tick
+ * this and how many clients remain to call.
+ *
+ * Clients are counted once per value however many campaigns they have under
+ * it, and `inScopeRelaxed` must already have this facet's own selections
+ * dropped, so the numbers beside the other values of a facet do not collapse
+ * to nothing as soon as one of them is ticked.
+ */
+export function coldFacetCounts(
+  all: Campaign[],
+  months: number,
+  facet: FacetKey,
+  inScopeRelaxed: (c: Campaign) => boolean,
+  asOf: Date = new Date(),
+): Map<string, number> {
+  const cold = new Set(coldClients(all, months, asOf, inScopeRelaxed).map((r) => r.name));
+  if (!cold.size) return new Map();
+
+  const counts = new Map<string, number>();
+  const counted = new Map<string, Set<string>>();
+  for (const c of all) {
+    if (!cold.has(c.client) || !inScopeRelaxed(c)) continue;
+    for (const value of facetValues(c, facet)) {
+      if (!value) continue;
+      let seen = counted.get(value);
+      if (!seen) { seen = new Set(); counted.set(value, seen); }
+      if (seen.has(c.client)) continue;
+      seen.add(c.client);
+      counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+  }
+  return counts;
+}

@@ -351,6 +351,16 @@ export function search(
 }
 
 /** Counts for one facet, with that facet's own selection removed. */
+/** The values one campaign contributes to a facet. */
+export function facetValues(c: Campaign, facet: FacetKey): string[] {
+  return facet === 'services' ? c.services
+    : facet === 'industries' ? [c.industry]
+    : facet === 'clients' ? [c.client]
+    : facet === 'clientTypes' ? [c.clientType]
+    : facet === 'statuses' ? [c.status]
+    : [c.lead];
+}
+
 export function facetCounts(
   all: Campaign[], q: Query, filters: Filters, facet: FacetKey,
 ): Map<string, number> {
@@ -359,13 +369,7 @@ export function facetCounts(
   for (const c of all) {
     if (!passes(c, q, relaxed)) continue;
     if (tierOf(c, q) === null) continue;
-    const values =
-      facet === 'services' ? c.services :
-      facet === 'industries' ? [c.industry] :
-      facet === 'clients' ? [c.client] :
-      facet === 'clientTypes' ? [c.clientType] :
-      facet === 'statuses' ? [c.status] : [c.lead];
-    for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+    for (const v of facetValues(c, facet)) counts.set(v, (counts.get(v) ?? 0) + 1);
   }
   return counts;
 }
