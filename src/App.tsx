@@ -400,6 +400,7 @@ function Ammo({ data }: { data: Dataset }) {
           all={ALL} meta={META} query={result.query} filters={filters}
           pitch={pitch} open={railOpen} onPatch={patch} onReset={reset}
           coldMonths={view === 'revive' ? coldMonths : null}
+          shortfall={shortfall !== null}
         />
 
         <main className="main">

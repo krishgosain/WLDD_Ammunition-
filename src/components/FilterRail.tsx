@@ -97,7 +97,7 @@ function Facet({
 }
 
 export default function FilterRail({
-  all, meta, query, filters, pitch, open, coldMonths, onPatch, onReset,
+  all, meta, query, filters, pitch, open, coldMonths, shortfall, onPatch, onReset,
 }: {
   all: Campaign[];
   meta: Meta;
@@ -107,6 +107,8 @@ export default function FilterRail({
   open: boolean;
   /** Months of silence when the call list is on screen, else null. */
   coldMonths: number | null;
+  /** True when nothing cleared the numeric floor and the board shows the ceiling. */
+  shortfall: boolean;
   onPatch: (p: Partial<Filters>) => void;
   onReset: () => void;
 }) {
@@ -118,14 +120,15 @@ export default function FilterRail({
    * promise the filter cannot keep — so each value counts the clients that
    * would remain if it were ticked.
    *
-   * Either way the facet's own selections are dropped before counting, so
-   * ticking one value does not zero the numbers beside its siblings.
+   * Either way the number has to be the one the click delivers, which is why
+   * the facet's own selection is handed to the counter rather than dropped:
+   * for services it narrows, and dropping it promised 1,772 for six.
    */
   const counts = useMemo(() => {
     const of = (facet: FacetKey) => {
-      if (coldMonths === null) return facetCounts(all, query, filters, facet);
+      if (coldMonths === null) return facetCounts(all, query, filters, facet, { floors: !shortfall });
       const relaxed: Filters = { ...filters, [facet]: [] };
-      return coldFacetCounts(all, coldMonths, facet, (c) => inScope(c, query, relaxed));
+      return coldFacetCounts(all, coldMonths, facet, filters[facet], (c) => inScope(c, query, relaxed));
     };
     return {
       industries: of('industries'),
@@ -135,7 +138,7 @@ export default function FilterRail({
       statuses: of('statuses'),
       leads: of('leads'),
     };
-  }, [all, query, filters, coldMonths]);
+  }, [all, query, filters, coldMonths, shortfall]);
 
   const toggle = (facet: FacetKey, value: string) => {
     const cur = filters[facet];

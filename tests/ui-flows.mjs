@@ -198,7 +198,29 @@ await step('the filters narrow the dead-client list', async()=>{
   A(await count() === said, `rail said ${said}, ticking it gave ${await count()}`);
   const others = await p.locator('.chipopt .chipopt__n').allInnerTexts();
   A(others.some((n) => Number(n) > 0), 'the sibling counts collapsed once one was ticked');
-  console.log('       all '+everyone+' → OTT '+ott+'; Amplification '+said+' and ticking it gives '+said);
+
+  // And the promise has to hold with a sibling already ticked, which is where
+  // it broke: services intersect, so counting Amplification as though the
+  // ticked service were not there offered 203 calls and delivered six.
+  const withOne = await count();
+  // Within the Service facet, because that is the facet that intersects.
+  const services = p.locator('section.facet')
+    .filter({ has: p.locator('.facet__title', { hasText: /^Service$/ }) }).first();
+  const chips = await services.locator('.chipopt:not(.chipopt--on)').all();
+  let best = null, bestN = 0;
+  for (const c of chips) {
+    const n = Number((await c.locator('.chipopt__n').innerText()).trim());
+    if (n > bestN) { bestN = n; best = c; }
+  }
+  A(best !== null, 'no second service left to tick');
+  const label = (await best.innerText()).split('\n')[0].trim();
+  A(bestN <= withOne, `${label} promises ${bestN} inside a list of ${withOne}`);
+  await best.click();
+  await p.waitForTimeout(1400);
+  const pair = await count();
+  A(pair === bestN, `with Amplification ticked, ${label} said ${bestN} and gave ${pair}`);
+  console.log('       all '+everyone+' → OTT '+ott+'; Amplification '+said+' → '+said
+    +', then '+label+' '+bestN+' → '+pair);
   void promised;
   await p.goto(B,{waitUntil:'networkidle'});
 });

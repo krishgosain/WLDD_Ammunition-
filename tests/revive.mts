@@ -7,7 +7,9 @@
  * next year, and the month boundaries themselves.
  */
 import { COLD_STEPS, coldClients, coldCsv, coldFacetCounts, coldStep, monthsBefore, startOfDay } from '../src/lib/revive';
-import type { Campaign } from '../src/lib/types';
+import { facetCounts, inScope, parseQuery } from '../src/lib/search';
+import { EMPTY_FILTERS } from '../src/lib/types';
+import type { Campaign, FacetKey, Filters } from '../src/lib/types';
 
 let pass = 0; const fails: string[] = [];
 const check = (name: string, cond: boolean) => { if (cond) pass++; else fails.push(name); };
@@ -187,7 +189,7 @@ const facetRows = [
   // Active: must not be counted anywhere.
   campaign({ client: 'BUSY', services: ['Amplification'], industry: 'OTT', date: '2026-10-20', reach: 1 }),
 ];
-const svc = coldFacetCounts(facetRows, 6, 'services', () => true, NOW);
+const svc = coldFacetCounts(facetRows, 6, 'services', [], () => true, NOW);
 check('a client with three campaigns counts once', svc.get('Amplification') === 1);
 check('each value counts its own clients', svc.get('Influencers') === 1);
 check('an active client is counted nowhere', coldClients(facetRows, 6, NOW).every((r) => r.name !== 'BUSY'));
@@ -200,15 +202,95 @@ for (const [value, n] of svc) {
 }
 console.log('  ok   every count equals the list you get by ticking it');
 
-const ind = coldFacetCounts(facetRows, 6, 'industries', () => true, NOW);
+const ind = coldFacetCounts(facetRows, 6, 'industries', [], () => true, NOW);
 check('industries count clients too', ind.get('OTT') === 1 && ind.get('FMCG') === 1);
 check('a value with only active clients does not appear', !ind.has('Music'));
 console.log('  ok   a value nobody cold sits under is simply absent');
 
 check('nothing cold means no counts at all',
-  coldFacetCounts(facetRows, 12, 'services', () => true, NOW).size === 0
+  coldFacetCounts(facetRows, 12, 'services', [], () => true, NOW).size === 0
   || coldClients(facetRows, 12, NOW).length > 0);
 console.log('  ok   counts and list agree when nobody is cold');
+
+// --- the promise with a sibling already ticked ----------------------------
+// Services intersect: SOLO and Amplification together means the campaigns that
+// did both. Counting a facet with its own selection simply dropped answered a
+// different question — "if Amplification were the only service filter" — and
+// so offered 203 calls on the screen where six existed behind the click.
+const pairRows = [
+  campaign({ client: 'BOTH', services: ['SOLO', 'Amplification'], industry: 'OTT', date: '2025-01-01', reach: 9 }),
+  campaign({ client: 'SOLOONLY', services: ['SOLO'], industry: 'OTT', date: '2025-02-01', reach: 5 }),
+  campaign({ client: 'AMPONLY', services: ['Amplification'], industry: 'FMCG', date: '2025-03-01', reach: 3 }),
+  campaign({ client: 'AMPTOO', services: ['Amplification'], industry: 'FMCG', date: '2025-04-01', reach: 2 }),
+];
+const EMPTY_QUERY = parseQuery('');
+const scoped = (f: Filters) => (c: Campaign) => inScope(c, EMPTY_QUERY, f);
+const listFor = (f: Filters) => coldClients(pairRows, 6, NOW, scoped(f)).length;
+const countsFor = (facet: FacetKey, f: Filters) => coldFacetCounts(
+  pairRows, 6, facet, f[facet] as string[],
+  scoped({ ...f, [facet]: [] }), NOW,
+);
+
+const withSolo: Filters = { ...EMPTY_FILTERS, services: ['SOLO'] };
+const soloSvc = countsFor('services', withSolo);
+check('a second service counts the clients who did both',
+  soloSvc.get('Amplification') === 1);
+check('and that is exactly what ticking it delivers',
+  soloSvc.get('Amplification') === listFor({ ...withSolo, services: ['SOLO', 'Amplification'] }));
+check('the ticked service reads as the list it is holding',
+  soloSvc.get('SOLO') === listFor(withSolo) && soloSvc.get('SOLO') === 2);
+console.log(`  ok   SOLO ticked: Amplification ${soloSvc.get('Amplification')}, not ${countsFor('services', EMPTY_FILTERS).get('Amplification')}`);
+
+// The invariant that was broken: a number on screen never promises more than
+// the click behind it delivers, whichever facet it sits in and whatever else
+// is already ticked. Where the facet's own selection is empty, or the facet
+// narrows rather than widens, it must match exactly.
+const FACETS: FacetKey[] = ['industries', 'services', 'clients', 'clientTypes', 'statuses', 'leads'];
+const states: Filters[] = [
+  EMPTY_FILTERS,
+  withSolo,
+  { ...EMPTY_FILTERS, services: ['SOLO', 'Amplification'] },
+  { ...EMPTY_FILTERS, industries: ['OTT'] },
+  { ...EMPTY_FILTERS, industries: ['OTT'], services: ['Amplification'] },
+  { ...EMPTY_FILTERS, clients: ['BOTH'] },
+];
+let promises = 0;
+for (const f of states) {
+  for (const facet of FACETS) {
+    const sel = f[facet] as string[];
+    for (const [value, shown] of countsFor(facet, f)) {
+      const next = sel.includes(value)
+        ? sel.filter((v) => v !== value)
+        : [...sel, value];
+      const delivered = listFor({ ...f, [facet]: next });
+      const ticking = !sel.includes(value);
+      check(`${facet}/${value} never over-promises`, shown <= Math.max(delivered, listFor(f)));
+      if (ticking && (facet === 'services' || !sel.length)) {
+        check(`${facet}/${value} is exactly what ticking it gives`, shown === delivered);
+      }
+      promises++;
+    }
+  }
+}
+console.log(`  ok   ${promises} facet numbers keep their promise, with siblings ticked and without`);
+
+// --- the board's own numbers ---------------------------------------------
+// The same lie lived on the board, where a facet counts campaigns: with SOLO
+// ticked, Amplification offered every amplification campaign in the archive.
+const board = (f: Filters, facet: FacetKey) => facetCounts(pairRows, EMPTY_QUERY, f, facet);
+check('the board counts the pair, not the whole service',
+  board(withSolo, 'services').get('Amplification') === 1);
+check('with nothing ticked it counts the whole service',
+  board(EMPTY_FILTERS, 'services').get('Amplification') === 3);
+check('a union facet still shows its own slice',
+  board({ ...EMPTY_FILTERS, industries: ['OTT'] }, 'industries').get('FMCG') === 2);
+// A reach floor is part of what the board shows, so it is part of the count.
+check('a numeric floor counts too',
+  board({ ...EMPTY_FILTERS, reachMin: 4 }, 'services').get('Amplification') === 1);
+check('but not when nothing clears it and the board shows the ceiling',
+  facetCounts(pairRows, EMPTY_QUERY, { ...EMPTY_FILTERS, reachMin: 1_000 }, 'services',
+    { floors: false }).get('Amplification') === 3);
+console.log('  ok   the board\'s counts answer for the board');
 
 fails.forEach((f) => console.log(`  FAIL ${f}`));
 console.log(`  ${pass} passed, ${fails.length} failed`);

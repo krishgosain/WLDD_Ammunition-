@@ -350,7 +350,6 @@ export function search(
   };
 }
 
-/** Counts for one facet, with that facet's own selection removed. */
 /** The values one campaign contributes to a facet. */
 export function facetValues(c: Campaign, facet: FacetKey): string[] {
   return facet === 'services' ? c.services
@@ -361,15 +360,56 @@ export function facetValues(c: Campaign, facet: FacetKey): string[] {
     : [c.lead];
 }
 
+/**
+ * Facets that narrow when a second value is ticked.
+ *
+ * Services intersect: SOLO plus Amplification asks for the campaigns that did
+ * both, not either. Every other facet is a union. The difference decides what
+ * a number beside a value is able to promise.
+ */
+const CONJUNCTIVE = new Set<FacetKey>(['services']);
+
+export const isConjunctive = (facet: FacetKey) => CONJUNCTIVE.has(facet);
+
+/** Does this campaign satisfy one facet's selection, by that facet's own rule? */
+export function facetAllows(c: Campaign, facet: FacetKey, selection: string[]): boolean {
+  if (!selection.length) return true;
+  const have = facetValues(c, facet);
+  return CONJUNCTIVE.has(facet)
+    ? selection.every((v) => have.includes(v))
+    : selection.some((v) => have.includes(v));
+}
+
+/**
+ * The numbers beside a facet's values.
+ *
+ * Each one answers the question the reader is actually asking — tick this and
+ * how much is left — so a facet's own selection is handled by that facet's
+ * rule rather than simply dropped.
+ *
+ * Dropping it is right for a union facet: with Food ticked, Fashion's number
+ * is Fashion's own slice of the current scope, which is what a reader scanning
+ * the column wants. It is wrong for services, which intersect. Dropping SOLO
+ * to count Amplification promised 1,772 campaigns and delivered six; the
+ * selection stays, so the number is what the pair would actually leave.
+ *
+ * Numeric floors count, except in the board's shortfall state, where nothing
+ * cleared the floor and the board is showing the real ceiling instead:
+ * counting strictly there would empty the rail beneath a board full of rows.
+ */
 export function facetCounts(
   all: Campaign[], q: Query, filters: Filters, facet: FacetKey,
+  { floors = true }: { floors?: boolean } = {},
 ): Map<string, number> {
   const relaxed: Filters = { ...filters, [facet]: [] };
+  const selected = filters[facet];
+  const narrowing = isConjunctive(facet);
   const counts = new Map<string, number>();
   for (const c of all) {
-    if (!passes(c, q, relaxed)) continue;
+    if (floors ? !inScope(c, q, relaxed) : !passes(c, q, relaxed)) continue;
     if (tierOf(c, q) === null) continue;
-    for (const v of facetValues(c, facet)) counts.set(v, (counts.get(v) ?? 0) + 1);
+    if (narrowing && !facetAllows(c, facet, selected)) continue;
+    for (const v of facetValues(c, facet)) if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
   }
   return counts;
 }

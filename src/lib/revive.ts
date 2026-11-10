@@ -1,5 +1,5 @@
 import type { Campaign, FacetKey } from './types';
-import { facetValues } from './search';
+import { facetAllows, facetValues, isConjunctive } from './search';
 
 /**
  * Which clients have gone quiet.
@@ -219,11 +219,17 @@ export { iso as isoDate };
  * it, and `inScopeRelaxed` must already have this facet's own selections
  * dropped, so the numbers beside the other values of a facet do not collapse
  * to nothing as soon as one of them is ticked.
+ *
+ * `selected` is that dropped selection, handed back so a facet that narrows
+ * rather than widens can be counted honestly. Services intersect: with SOLO
+ * ticked, Amplification's number is the clients who did both, not the 203 who
+ * ever did Amplification — a number that promised 203 calls and delivered six.
  */
 export function coldFacetCounts(
   all: Campaign[],
   months: number,
   facet: FacetKey,
+  selected: string[],
   inScopeRelaxed: (c: Campaign) => boolean,
   asOf: Date = new Date(),
 ): Map<string, number> {
@@ -232,8 +238,10 @@ export function coldFacetCounts(
 
   const counts = new Map<string, number>();
   const counted = new Map<string, Set<string>>();
+  const narrowing = isConjunctive(facet);
   for (const c of all) {
     if (!cold.has(c.client) || !inScopeRelaxed(c)) continue;
+    if (narrowing && !facetAllows(c, facet, selected)) continue;
     for (const value of facetValues(c, facet)) {
       if (!value) continue;
       let seen = counted.get(value);
