@@ -106,14 +106,41 @@ function wholeMonths(last: Date, now: Date): number {
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 /**
+ * Distinct values, commonest first.
+ *
+ * What a client is mostly known for should lead, not whichever campaign the
+ * archive happened to list first — particularly on a row narrowed by a
+ * filter, where showing an arbitrary category reads as a contradiction.
+ */
+function byFrequency(values: string[]): string[] {
+  const counts = new Map<string, number>();
+  for (const v of values) if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([v]) => v);
+}
+
+/**
  * Clients whose last work was longer ago than `months`.
  *
- * Recency is always measured across every campaign a client has, even when
- * the caller has filtered the archive down. Asking "who has gone quiet" of a
- * narrowed set would otherwise answer with clients who are perfectly active
- * in work the filter happens to exclude.
+ * The filters choose which clients are asked about; they never decide how
+ * recently a client worked. Those are different questions and conflating them
+ * gives a wrong answer either way.
+ *
+ * Measuring recency inside a filtered set would call a client cold because
+ * the filter hid their recent work: filter to OTT and a client who did OTT a
+ * year ago but something else last week reads as a year silent. So `inScope`
+ * decides who is on the list, and the silence is always measured across every
+ * campaign that client has.
+ *
+ * The figures on a row are the client's whole record for the same reason. A
+ * filtered subtotal would say a client is worth less than they are, which is
+ * exactly the judgement the list exists to inform.
  */
-export function coldClients(all: Campaign[], months: number, asOf: Date = new Date()): ColdClient[] {
+export function coldClients(
+  all: Campaign[],
+  months: number,
+  asOf: Date = new Date(),
+  inScope?: (c: Campaign) => boolean,
+): ColdClient[] {
   const now = startOfDay(asOf);
   const cutoff = monthsBefore(now, months);
   const byClient = new Map<string, Campaign[]>();
@@ -125,6 +152,9 @@ export function coldClients(all: Campaign[], months: number, asOf: Date = new Da
 
   const out: ColdClient[] = [];
   for (const [name, list] of byClient) {
+    // One campaign inside the filters puts the client on the list; the rest of
+    // their record still counts towards what is shown.
+    if (inScope && !list.some(inScope)) continue;
     let last = '';
     let lastCampaign: Campaign | null = null;
     for (const c of list) {
@@ -146,8 +176,8 @@ export function coldClients(all: Campaign[], months: number, asOf: Date = new Da
       campaigns: list.length,
       reach: list.reduce((s, c) => s + (c.reach ?? 0), 0),
       eng: list.reduce((s, c) => s + (c.eng ?? 0), 0),
-      industries: [...new Set(list.map((c) => c.industry).filter(Boolean))],
-      services: [...new Set(list.flatMap((c) => c.services))],
+      industries: byFrequency(list.map((c) => c.industry)),
+      services: byFrequency(list.flatMap((c) => c.services)),
       lead: lastCampaign?.lead ?? '',
       lastCampaign: lastCampaign?.name ?? '',
     });

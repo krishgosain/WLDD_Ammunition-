@@ -155,6 +155,38 @@ await step('search still works end to end', async()=>{
   console.log('       '+clients.length+' results, all MYNTRA');
 });
 
+await step('the filters narrow the dead-client list', async()=>{
+  // The rail's filters did nothing here at first: the view read the whole
+  // archive and ignored them. Recency still has to come from every campaign a
+  // client has — otherwise a filter hides the recent work that proves someone
+  // is busy — but the filters must decide who is asked about.
+  await p.goto(B+'/?view=revive&cold=6',{waitUntil:'networkidle'});
+  await p.waitForSelector('.cold__row',{timeout:20000});
+  await p.waitForTimeout(700);
+  const count = async () => Number((await p.locator('.cold__count b').innerText()).replace(/\D/g,''));
+  const everyone = await count();
+  A(everyone > 0, 'nobody listed without filters');
+
+  await p.goto(B+'/?view=revive&cold=6&ind=OTT',{waitUntil:'networkidle'});
+  await p.waitForSelector('.cold__row',{timeout:20000});
+  await p.waitForTimeout(900);
+  const ott = await count();
+  A(ott > 0, 'filtering to OTT emptied the list');
+  A(ott < everyone, `the filter changed nothing: ${ott} of ${everyone}`);
+
+  // The page says what it is showing, and what it is holding back.
+  const sub = await p.locator('.cold__sub').innerText();
+  A(/narrowed by the filters/i.test(sub), 'the page does not say it is filtered');
+  A((await p.locator('.cold__count').innerText()).includes(String(everyone)),
+    'the unfiltered total is not offered');
+
+  // Every row shows why it qualified, so a filtered row never looks wrong.
+  const cats = await p.locator('.cold__client i').allInnerTexts();
+  A(cats.slice(0,5).every((c)=>/OTT/.test(c)), 'a filtered row does not show the matching category: '+cats.slice(0,5));
+  console.log('       all '+everyone+' → OTT '+ott+', each row showing its category');
+  await p.goto(B,{waitUntil:'networkidle'});
+});
+
 await step('dead clients lists who has gone quiet, by month', async()=>{
   // The call list answers a question about clients, not campaigns: who has
   // not been heard from, worth most first, so it can be worked from the top.

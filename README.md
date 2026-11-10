@@ -412,8 +412,16 @@ Three decisions decide who appears, and all three are load-bearing:
 - **Work booked ahead counts as alive.** The archive holds campaigns dated
   into 2028 and 68 clients have one. A client with something in the diary is
   the opposite of cold, so no threshold ever reaches them.
-- **Recency is measured across the whole archive, never the filtered view.**
-  A client is not cold because the current search hides their recent work.
+- **The filters choose who is asked about; recency is always measured across
+  the whole archive.** These are different questions and conflating them gets
+  the answer wrong either way. Filter to OTT and the list narrows to clients
+  who have done OTT work — but a client who did OTT a year ago and something
+  else last week is not cold, because the silence is measured on everything
+  they have done. The figures on a row are the client's whole record for the
+  same reason: a filtered subtotal would understate what they are worth, which
+  is the judgement the list exists to inform. Each row names the client's
+  categories, commonest first, so a row that qualified on one campaign does
+  not look like a mistake.
 - **One company is one row.** The sheet is typed by hand, so the same client
   arrives spelled differently — and with different client ids, which hides the
   duplication from everything downstream. "BIGBANGSOCIAL" last worked in

@@ -27,15 +27,27 @@ function quietFor(months: number): string {
 }
 
 export default function ColdClients({
-  all, months, onMonths, onOpenClient, onCopy,
+  all, months, inScope, filtered, onMonths, onOpenClient, onCopy,
 }: {
   all: Campaign[];
   months: number;
+  /** Which campaigns the filters on screen admit, or null when none are set. */
+  inScope: ((c: Campaign) => boolean) | null;
+  /** True when something is filtering, so the page can say what it is showing. */
+  filtered: boolean;
   onMonths: (m: number) => void;
   onOpenClient: (client: string) => void;
   onCopy: (text: string, label: string) => void;
 }) {
-  const rows = useMemo(() => coldClients(all, months), [all, months]);
+  const rows = useMemo(
+    () => coldClients(all, months, new Date(), inScope ?? undefined),
+    [all, months, inScope],
+  );
+  /** Every cold client, to say how many the filters are holding back. */
+  const unfiltered = useMemo(
+    () => (filtered ? coldClients(all, months).length : rows.length),
+    [all, months, filtered, rows.length],
+  );
 
   const totals = useMemo(() => ({
     reach: rows.reduce((s, r) => s + r.reach, 0),
@@ -80,6 +92,7 @@ export default function ColdClients({
           <h2 className="cold__title">Dead clients</h2>
           <p className="cold__sub">
             Nothing from them in <b>{stepLabel(months)}</b>
+            {filtered && <> · narrowed by the filters</>}
             {rows.length > 0 && <> · {fmt(totals.reach)} reach across {totals.campaigns} past campaigns</>}
           </p>
         </div>
@@ -107,8 +120,9 @@ export default function ColdClients({
         <div className="empty">
           <h3>Nobody has gone quiet</h3>
           <p>
-            Every client has worked with WLDD inside the last {stepLabel(months)}, or has work
-            booked ahead.
+            {filtered && unfiltered > 0
+              ? `No client matching these filters has gone quiet for ${stepLabel(months)} — though ${unfiltered} ${unfiltered === 1 ? 'has' : 'have'} across the whole archive.`
+              : `Every client has worked with WLDD inside the last ${stepLabel(months)}, or has work booked ahead.`}
           </p>
           {earliest && (
             <p className="hint" style={{ marginTop: 10 }}>
@@ -119,7 +133,10 @@ export default function ColdClients({
         </div>
       ) : (
         <>
-          <p className="cold__count"><b>{rows.length}</b> client{rows.length === 1 ? '' : 's'} to call</p>
+          <p className="cold__count">
+            <b>{rows.length}</b> client{rows.length === 1 ? '' : 's'} to call
+            {filtered && unfiltered > rows.length && <> · {unfiltered} without the filters</>}
+          </p>
           <div className="cold__list">
             <div className="cold__row cold__row--head" aria-hidden>
               <span>Client</span><span>Last worked</span><span className="r">Quiet</span>
@@ -134,7 +151,9 @@ export default function ColdClients({
               >
                 <span className="cold__client">
                   <b>{r.name}</b>
-                  {r.industries[0] && <i>{r.industries[0]}</i>}
+                  {/* Two at most: enough to show why a filtered row is here
+                      without the name turning into a list. */}
+                  {r.industries.length > 0 && <i>{r.industries.slice(0, 2).join(' · ')}</i>}
                 </span>
                 <span className="cold__when">{fmtMonth(r.last)}</span>
                 <span className="r cold__months">{quietFor(r.monthsCold)}</span>
@@ -150,7 +169,10 @@ export default function ColdClients({
           <p className="hint cold__note">
             Measured on every campaign a client has, start date or end date, so a long
             campaign that only just finished does not read as silence — and anyone with
-            work already booked is never listed.{' '}
+            work already booked is never listed.
+            {filtered && ' The filters choose which clients are asked about; the silence '
+              + 'and the figures are still each client\u2019s whole record, because a filtered '
+              + 'subtotal would understate what they are worth.'}{' '}
             <button
               className="linkish"
               onClick={() => onCopy(rows.map((r) => r.name).join('\n'), `${rows.length} client names copied`)}

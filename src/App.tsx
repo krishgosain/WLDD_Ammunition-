@@ -4,7 +4,7 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import type { Campaign, Filters, SortKey, View, FacetKey } from './lib/types';
 import { EMPTY_FILTERS } from './lib/types';
-import { search, countActive, buildVocabulary } from './lib/search';
+import { search, countActive, buildVocabulary, inScope } from './lib/search';
 import { fmt } from './lib/format';
 import {
   DEPARTMENTS, DEPARTMENT_COLOURS, UNCLASSIFIED_COLOUR, industryColour,
@@ -210,6 +210,19 @@ function Ammo({ data }: { data: Dataset }) {
   const result = useMemo(
     () => search(ALL, deferredQuery, filters, sort, vocab),
     [ALL, deferredQuery, filters, sort, vocab],
+  );
+
+  /**
+   * The filters on screen, as a test one campaign at a time.
+   *
+   * Built from the query the board already parsed, so the two views cannot
+   * disagree about what a filter means. Null when nothing is filtering, which
+   * lets the call list skip the work entirely.
+   */
+  const anyFilter = countActive(filters) > 0 || deferredQuery.trim().length > 0;
+  const coldScope = useMemo(
+    () => (anyFilter ? (c: Campaign) => inScope(c, result.query, filters) : null),
+    [anyFilter, result.query, filters],
   );
 
   const state = useMemo(
@@ -497,6 +510,8 @@ function Ammo({ data }: { data: Dataset }) {
               <ColdClients
                 all={ALL}
                 months={coldMonths}
+                inScope={coldScope}
+                filtered={anyFilter}
                 onMonths={setColdMonths}
                 onOpenClient={(name) => setDossier(name)}
                 onCopy={onCopy}

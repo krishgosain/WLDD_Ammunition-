@@ -142,6 +142,36 @@ check('a long day and an early morning give the same list',
   coldClients(spread, 12, localEarly).length === coldClients(spread, 12, localNoon).length);
 console.log('  ok   the hour of the day cannot shift who is listed');
 
+
+// --- the filters choose who is asked about, not how recent they are --------
+// This is the trap: measuring recency inside a filtered set would call a
+// client cold because the filter hid the very work that proves they are not.
+const mixed = [
+  campaign({ client: 'STILL BUSY', industry: 'OTT', date: '2025-01-10', reach: 4_000_000 }),
+  campaign({ client: 'STILL BUSY', industry: 'FMCG', date: '2026-10-20', reach: 1_000_000 }),
+  campaign({ client: 'REALLY COLD', industry: 'OTT', date: '2025-02-01', reach: 9_000_000 }),
+];
+const ott = (c: Campaign) => c.industry === 'OTT';
+const askedOfOtt = coldClients(mixed, 6, NOW, ott).map((r) => r.name);
+check('a client whose recent work the filter hides is not called cold', !askedOfOtt.includes('STILL BUSY'));
+check('a genuinely cold client in the filter is listed', askedOfOtt.includes('REALLY COLD'));
+check('only the filtered clients are considered', askedOfOtt.length === 1);
+console.log('  ok   filtering to OTT does not make a busy client look silent');
+
+// --- the figures stay the client's whole record ---------------------------
+const whole = coldClients([
+  campaign({ client: 'BOTH', industry: 'OTT', date: '2025-02-01', reach: 5_000_000 }),
+  campaign({ client: 'BOTH', industry: 'FMCG', date: '2025-01-01', reach: 7_000_000 }),
+], 6, NOW, ott);
+check('a filtered row still counts every campaign', whole[0].campaigns === 2);
+check('a filtered row still totals the whole record', whole[0].reach === 12_000_000);
+console.log('  ok   a filter narrows who is listed, never what they are worth');
+
+// --- no filter means no narrowing -----------------------------------------
+check('without a predicate nothing is excluded',
+  coldClients(mixed, 6, NOW).length === coldClients(mixed, 6, NOW, () => true).length);
+console.log('  ok   an absent filter behaves exactly like one that admits everything');
+
 fails.forEach((f) => console.log(`  FAIL ${f}`));
 console.log(`  ${pass} passed, ${fails.length} failed`);
 if (fails.length) process.exit(1);

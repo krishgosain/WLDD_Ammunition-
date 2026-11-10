@@ -180,6 +180,20 @@ function numeric(c: Campaign, reachMin: number | null, engMin: number | null, re
   return true;
 }
 
+/**
+ * Is this campaign inside the filters currently on screen?
+ *
+ * The same rule the board applies, without the ranking, the tiers or the
+ * shortfall path that truncates results to twelve. The dead-client list needs
+ * to know which campaigns are in scope, not which are the best answers, so it
+ * cannot read the board's results and must share the rule instead — otherwise
+ * the two views disagree about what a filter means.
+ */
+export function inScope(c: Campaign, q: Query, f: Filters): boolean {
+  if (!passes(c, q, f)) return false;
+  return numeric(c, f.reachMin ?? q.reachMin, f.engMin ?? q.engMin, f.reachMax);
+}
+
 const TIER_RANK: Record<Tier, number> = { exact: 0, strong: 1, partial: 2, broad: 3 };
 
 /**
