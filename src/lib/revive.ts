@@ -120,6 +120,21 @@ function byFrequency(values: string[]): string[] {
 }
 
 /**
+ * The same list, but whatever satisfied the filter comes first.
+ *
+ * A row shows the first couple of its categories, and the figures beside it are
+ * the client's whole record — so under an OTT filter a client with one OTT
+ * campaign and six elsewhere could be listed with "Unclassified · Fashion"
+ * against their name and read as a row that does not belong. Leading with the
+ * matching values says why the client is there; the rest of the record still
+ * follows, because that is what the client is known for.
+ */
+function matchFirst(scoped: string[], whole: string[]): string[] {
+  const front = byFrequency(scoped);
+  return [...front, ...byFrequency(whole).filter((v) => !front.includes(v))];
+}
+
+/**
  * Clients whose last work was longer ago than `months`.
  *
  * The filters choose which clients are asked about; they never decide how
@@ -155,7 +170,8 @@ export function coldClients(
   for (const [name, list] of byClient) {
     // One campaign inside the filters puts the client on the list; the rest of
     // their record still counts towards what is shown.
-    if (inScope && !list.some(inScope)) continue;
+    const scoped = inScope ? list.filter(inScope) : list;
+    if (inScope && !scoped.length) continue;
     let last = '';
     let lastCampaign: Campaign | null = null;
     for (const c of list) {
@@ -177,8 +193,8 @@ export function coldClients(
       campaigns: list.length,
       reach: list.reduce((s, c) => s + (c.reach ?? 0), 0),
       eng: list.reduce((s, c) => s + (c.eng ?? 0), 0),
-      industries: byFrequency(list.map((c) => c.industry)),
-      services: byFrequency(list.flatMap((c) => c.services)),
+      industries: matchFirst(scoped.map((c) => c.industry), list.map((c) => c.industry)),
+      services: matchFirst(scoped.flatMap((c) => c.services), list.flatMap((c) => c.services)),
       lead: lastCampaign?.lead ?? '',
       lastCampaign: lastCampaign?.name ?? '',
     });

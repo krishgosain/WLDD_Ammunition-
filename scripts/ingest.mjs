@@ -36,6 +36,40 @@ const DEAD_LINKS = (() => {
   } catch { return new Map(); }
 })();
 
+/**
+ * Readable spellings for names the sheet glues into one shouting string.
+ *
+ * Keyed the way `spellingKey` keys everything else — case, spaces and
+ * punctuation removed — so every way of typing the same name finds the same
+ * entry. Word breaks and capitals only: the file never renames a company.
+ */
+const CLIENT_NAMES = (() => {
+  const file = new URL('../data/client-names.json', import.meta.url);
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return new Map(Object.entries(raw.names ?? {}));
+  } catch { return new Map(); }
+})();
+
+/**
+ * Words a glued name may be split on, beyond the ones the sheet spells out
+ * itself. Deliberately generic — company suffixes, places, the vocabulary of
+ * the trade. Brand spellings belong in data/client-names.json, because a brand
+ * invented out of a word list is a company nobody has heard of.
+ */
+const KNOWN_WORDS = ['private', 'limited', 'ltd', 'pvt', 'llp', 'inc', 'company', 'corporation',
+  'enterprises', 'holdings', 'ventures', 'india', 'indian', 'mumbai', 'delhi', 'bengaluru',
+  'bangalore', 'hyderabad', 'chennai', 'kolkata', 'pune', 'gurgaon', 'noida', 'asia', 'global',
+  'international', 'worldwide', 'group', 'media', 'digital', 'solutions', 'services',
+  'advertising', 'marketing', 'communications', 'creative', 'studio', 'studios',
+  'entertainment', 'pictures', 'production', 'productions', 'music', 'network', 'networks',
+  'technologies', 'technology', 'infotech', 'software', 'labs', 'works', 'content', 'social',
+  'agency', 'consulting', 'partners', 'brands', 'beverages', 'foods', 'retail', 'lifestyle',
+  'wellness', 'healthcare', 'house', 'world', 'and', 'the', 'for', 'of'];
+
+/** Pieces short enough to be suspicious, allowed because they are real words. */
+const SHORT_WORDS = new Set(['and', 'the', 'for', 'of', 'ltd', 'pvt', 'llp', 'inc', 'co']);
+
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /* ------------------------------------------------------------------ columns */
@@ -207,6 +241,7 @@ const health = {
   skipped: 0, noReport: 0, noFigures: 0, badDate: 0, canvaEditRewritten: 0, rejectedReports: [],
   unclassified: 0, engOverReach: [], duplicatedFigures: [], extremeReach: [],
   unknownServices: new Set(), corrected: [],
+  namedClients: [], splitClients: [], gluedClients: [],
 };
 
 /**
@@ -236,12 +271,87 @@ for (const row of parsed.data) {
   const m = spellings.get(k);
   m.set(c, (m.get(c) ?? 0) + 1);
 }
+
+/**
+ * A name the sheet has typed as one glued, shouting string.
+ *
+ * Legal names pasted out of an invoicing system arrive as
+ * SOCHEERSINFOTECHPRIVATELIMITED. Nothing downstream can break that up — it is
+ * one word as far as any renderer is concerned — so it reads as noise on the
+ * board and worse in a CSV someone is working a call list from.
+ *
+ * The test is narrow on purpose: no space, too long to be an acronym, and
+ * shouting. ACKO, ZEE5, TITAN and FITTR are how those brands write themselves
+ * and are left exactly as the sheet has them.
+ */
+const glued = (name) => name.length >= 10 && !/\s/.test(name) && name === name.toUpperCase();
+
+/**
+ * Words this sheet can be proved to contain, because it spells them out
+ * somewhere a human has already put the spaces in.
+ */
+const VOCAB = new Set(KNOWN_WORDS);
+for (const [, m] of spellings) {
+  for (const name of m.keys()) {
+    if (glued(name)) continue;            // a glued name teaches nothing
+    for (const w of name.toLowerCase().match(/[a-z]{3,}/g) ?? []) VOCAB.add(w);
+  }
+}
+
+const SMALL = new Set(['and', 'the', 'for', 'of']);
+const capitalise = (w) => w[0].toUpperCase() + w.slice(1);
+
+/**
+ * Break a glued name into words, or decide it cannot be done.
+ *
+ * Every piece has to be a word already known, and the pieces have to cover the
+ * whole name. A leftover fragment means a brand spelling nobody has written
+ * out — SCHBANG, WIRALITY, JEEVANSATHI — and guessing at the break there
+ * invents a company, so those are reported rather than split.
+ */
+function splitGlued(name) {
+  const s = name.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+  const takes = (piece) => /^\d+$/.test(piece)
+    || (VOCAB.has(piece) && (piece.length >= 4 || SHORT_WORDS.has(piece)));
+
+  // Fewest pieces wins, so a name that can be read as whole words is not
+  // chopped into the smaller words hiding inside them.
+  const best = Array(s.length + 1).fill(null);
+  best[0] = [];
+  for (let i = 0; i < s.length; i++) {
+    if (!best[i]) continue;
+    for (let j = s.length; j > i; j--) {
+      const piece = s.slice(i, j);
+      if (!takes(piece)) continue;
+      if (!best[j] || best[j].length > best[i].length + 1) best[j] = [...best[i], piece];
+    }
+  }
+
+  const parts = best[s.length];
+  if (!parts || parts.length < 2) return null;
+  // Something substantial has to be in there; a name read entirely as three-
+  // letter words is a coincidence, not a company.
+  if (!parts.some((p) => p.length >= 5)) return null;
+  return parts.map((p, i) => (i && SMALL.has(p) ? p : capitalise(p))).join(' ');
+}
+
+/** The spelling to show: the sheet's, unless the sheet glued it together. */
+function readableClient(name) {
+  if (!glued(name)) return name;
+  const listed = CLIENT_NAMES.get(spellingKey(name));
+  if (listed) { health.namedClients.push(`${name}  →  ${listed}`); return listed; }
+  const split = splitGlued(name);
+  if (split) { health.splitClients.push(`${name}  →  ${split}`); return split; }
+  health.gluedClients.push(name);
+  return name;
+}
+
 const canonClient = new Map();
 for (const [k, m] of spellings) {
   // Prefer the most frequent spelling; break ties toward Title Case over ALL CAPS.
   const best = [...m.entries()].sort((a, b) =>
     b[1] - a[1] || (a[0] === a[0].toUpperCase() ? 1 : -1))[0][0];
-  canonClient.set(k, best);
+  canonClient.set(k, readableClient(best));
 }
 
 /**
@@ -496,6 +606,16 @@ L('Reach === engagement', health.duplicatedFigures.length);
 L('Reach above 2B', health.extremeReach.length);
 L('Figures corrected', health.corrected.length);
 L('Canva edit links → view', health.canvaEditRewritten);
+L('Client names unglued', health.namedClients.length + health.splitClients.length);
+if (health.splitClients.length) {
+  console.log('\n  Glued client names split on words the sheet already spells out');
+  for (const line of health.splitClients) console.log(`    · ${line}`);
+}
+if (health.gluedClients.length) {
+  console.log('\n  Client names the sheet glues together and nothing here can read');
+  console.log('  (they ship as-is; add a spelling to data/client-names.json to fix one)');
+  for (const name of health.gluedClients) console.log(`    · ${name}`);
+}
 L('Clients maybe duplicated', nearDuplicates.length);
 if (nearDuplicates.length) {
   console.log('\n  Client names that may be the same company');
