@@ -48,6 +48,7 @@ const ReachField = lazy(() => import('./components/ReachField'));
 const ColdClients = lazy(() => import('./components/ColdClients'));
 // The pitch one-pager is a separate screen; the board should not carry it.
 const OnePager = lazy(() => import('./components/OnePager'));
+const CredsDeck = lazy(() => import('./components/CredsDeck'));
 
 /**
  * How many campaigns a pitch kit holds.
@@ -405,9 +406,11 @@ function Ammo({ data }: { data: Dataset }) {
 
         <main className="main">
           <div className="toolbar">
-            <h2 className="board__title">{view === 'revive' ? 'Gone quiet' : 'Departures'}</h2>
+            <h2 className="board__title">
+              {view === 'revive' ? 'Gone quiet' : view === 'creds' ? 'Cred deck' : 'Departures'}
+            </h2>
             {/* The call list counts clients, not campaigns, and says so itself. */}
-            {view !== 'revive' && (
+            {view !== 'revive' && view !== 'creds' && (
               <p className="count">
                 {result.items.length
                   ? <><strong className="num">{result.items.length}</strong>{' '}
@@ -424,7 +427,7 @@ function Ammo({ data }: { data: Dataset }) {
               label="View"
               value={view}
               onChange={setView}
-              options={[['grid', 'Board'], ['field', 'Field'], ['revive', 'Dead clients']]}
+              options={[['grid', 'Board'], ['field', 'Field'], ['revive', 'Dead clients'], ['creds', 'Cred deck']]}
             />
 
             {view === 'grid' && (
@@ -520,6 +523,19 @@ function Ammo({ data }: { data: Dataset }) {
               />
             </Suspense>
           )}
+          {/* The deck is built out of the pitch kit, not out of the current
+              search: what is going in front of a client was chosen, not
+              filtered. */}
+          {view === 'creds' && (
+            <Suspense fallback={<div className="creds"><div className="empty"><p>Opening the deck builder…</p></div></div>}>
+              <CredsDeck
+                items={compareItems}
+                onRemove={(id) => setCompare((c) => c.filter((x) => x !== id))}
+                onCopy={onCopy}
+                onOpenBoard={() => setView('grid')}
+              />
+            </Suspense>
+          )}
         </main>
       </div>
 
@@ -536,6 +552,7 @@ function Ammo({ data }: { data: Dataset }) {
             onClear={() => setCompare([])}
             onOpen={() => setShowCompare(true)}
             onBuild={() => setOnePager(true)}
+            onDeck={() => setView('creds')}
             onCopy={() => onCopy(digestOf(compareItems), 'Copied')}
           />
         )}

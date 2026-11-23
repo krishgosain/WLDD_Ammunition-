@@ -6,7 +6,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wldd-'));
-for (const entry of ['tests/search.test.mts', 'tests/revive.mts']) {
+for (const entry of ['tests/search.test.mts', 'tests/revive.mts', 'tests/creds.mts']) {
   const out = path.join(tmp, `${path.basename(entry, path.extname(entry))}.mjs`);
   await build({
     entryPoints: [entry],

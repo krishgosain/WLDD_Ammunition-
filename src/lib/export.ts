@@ -37,7 +37,11 @@ export function download(filename: string, text: string, type = 'text/csv;charse
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  // Detached anchors are ignored by the download attribute in Chromium: the
+  // file arrives called "download" with no extension.
+  document.body.appendChild(a);
   a.click();
+  a.remove();
   // Revoke on the next tick so the download has already started.
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }

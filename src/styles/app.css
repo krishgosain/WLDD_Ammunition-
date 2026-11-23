@@ -1323,3 +1323,107 @@ h1, h2, h3, h4, p { margin: 0; }
   .cold__row > :nth-child(4), .cold__row > :nth-child(6) { display: none; }
   .cold__row--head > :nth-child(4), .cold__row--head > :nth-child(6) { display: none; }
 }
+
+/* ------------------------------------------------------------------ creds */
+/* The deck builder. The preview is a scale model of the Canva slide — black
+   ground, gold eyebrow, the figures bottom left, the media frame waiting —
+   so what is on screen here is recognisably what lands in the deck. */
+
+.creds { padding: 4px 0 40px; }
+.creds__setup {
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end;
+  padding: 16px 4px; border-bottom: 1px solid var(--line);
+}
+.creds__field { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1 1 200px; }
+.creds__field--wide { flex: 2 1 320px; }
+.creds__field > span {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--muted);
+}
+.creds__field input, .creds__field textarea {
+  width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 13.5px;
+}
+.creds__field textarea { resize: vertical; line-height: 1.5; }
+.creds__field input:focus, .creds__field textarea:focus {
+  outline: 2px solid var(--wldd-red); outline-offset: 1px; border-color: transparent;
+}
+.creds__hint { flex: 1 1 100%; margin: 0; font-size: 12px; color: var(--muted); max-width: 70ch; }
+
+.creds__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.creds__slide {
+  display: grid; grid-template-columns: 34px minmax(260px, 1.05fr) minmax(280px, 1fr);
+  gap: 18px; align-items: start; padding: 20px 4px; border-bottom: 1px solid var(--line);
+}
+.creds__num { font-family: var(--display); font-size: 22px; color: var(--muted); line-height: 1.2; }
+.creds__side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.creds__origin { margin: 0; font-size: 12.5px; line-height: 1.5; }
+.creds__origin b {
+  font-family: var(--display); font-weight: 400; font-size: 17px;
+  text-transform: uppercase; letter-spacing: .02em;
+}
+.creds__origin i { font-style: normal; font-size: 11.5px; color: var(--muted); }
+.creds__row { display: flex; gap: 12px; }
+.creds__more {
+  align-self: flex-start; padding: 0; border: 0; background: none; color: var(--wldd-red);
+  font: inherit; font-size: 12.5px; cursor: pointer; text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.creds__words { display: flex; flex-direction: column; gap: 10px; }
+.creds__slideacts { display: flex; gap: 8px; align-items: center; }
+.creds__slideacts button {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px;
+  background: var(--surface); color: var(--muted); font: inherit; font-size: 12px; cursor: pointer;
+}
+.creds__slideacts button:hover:not(:disabled) { color: var(--ink); border-color: var(--ink-2); }
+.creds__slideacts button:disabled { opacity: .35; cursor: default; }
+
+.creds__foot {
+  display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start;
+  padding: 22px 4px 0;
+}
+.creds__footnote { flex: 1 1 380px; max-width: 76ch; }
+.creds__footnote p { margin: 0 0 8px; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+.creds__footnote b { color: var(--ink); }
+.creds__draftnote { color: var(--ink) !important; }
+.creds__acts { display: flex; flex-wrap: wrap; gap: 10px; margin-left: auto; align-items: center; }
+
+/* the scale model */
+.credslide {
+  container-type: inline-size;
+  position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden;
+  background: #060606; border-radius: 6px; border: 1px solid var(--line);
+}
+.credslide__bar {
+  position: absolute; inset: 0 0 auto; height: 1.6cqw;
+  background: linear-gradient(90deg, #E8B33A, #44D07B, #38C8E0, #E0506E, #B07CFF);
+}
+.credslide__body { position: absolute; inset: 1.6cqw 0 0; display: flex; gap: 2cqw; padding: 3cqw; }
+.credslide__text { width: 34%; display: flex; flex-direction: column; min-width: 0; }
+.credslide__eyebrow {
+  margin: 0 0 1.4cqw; color: #E8B33A; font-size: 2.1cqw; line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.credslide__head {
+  margin: 0 0 1.4cqw; color: #fff; font-weight: 700; font-size: 3.1cqw; line-height: 1.18;
+}
+.credslide__para { margin: 0 0 1.4cqw; color: #CFCFCF; font-size: 1.7cqw; line-height: 1.45; }
+.credslide__kick { margin: 0 0 1cqw; color: #fff; font-weight: 700; font-size: 1.8cqw; line-height: 1.35; }
+.credslide__head--ghost, .credslide__para--ghost, .credslide__kick--ghost {
+  color: #6A6A6A; font-style: italic; font-weight: 400;
+}
+.credslide__figs {
+  margin: auto 0 1.2cqw; color: #fff; font-weight: 700; font-size: 2.9cqw; line-height: 1.25;
+}
+.credslide__chips { margin: 0; display: flex; gap: 1.2cqw; font-size: 1.6cqw; font-weight: 700; }
+.credslide__media {
+  flex: 1; display: grid; place-items: center; border-radius: 1cqw;
+  background: #141414; border: 1px dashed #333;
+}
+.credslide__media span { color: #5A5A5A; font-size: 1.6cqw; }
+
+@media (max-width: 900px) {
+  .creds__slide { grid-template-columns: 24px 1fr; }
+  .creds__slide .creds__side { grid-column: 2; }
+}

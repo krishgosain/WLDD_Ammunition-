@@ -161,5 +161,5 @@ export interface SearchResult {
 export type SortKey =
   | 'relevance' | 'reach' | 'engagement' | 'recent' | 'oldest' | 'deliverables';
 
-export type View = 'grid' | 'field' | 'revive';
+export type View = 'grid' | 'field' | 'revive' | 'creds';
 

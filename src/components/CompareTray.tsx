@@ -11,7 +11,7 @@ import { IconClose, IconCopy, IconArrow } from './Icons';
  * motion rather than two tools.
  */
 export default function CompareTray({
-  items, colourOf, onRemove, onClear, onOpen, onBuild, onCopy,
+  items, colourOf, onRemove, onClear, onOpen, onBuild, onDeck, onCopy,
 }: {
   items: Campaign[];
   colourOf: (c: Campaign) => string;
@@ -19,6 +19,7 @@ export default function CompareTray({
   onClear: () => void;
   onOpen: () => void;
   onBuild: () => void;
+  onDeck: () => void;
   onCopy: () => void;
 }) {
   if (!items.length) return null;
@@ -47,7 +48,8 @@ export default function CompareTray({
       <button className="btn btn--tray" onClick={onOpen} disabled={items.length < 2}>
         Compare {items.length}
       </button>
-      <button className="btn" onClick={onBuild}>Build one-pager <IconArrow /></button>
+      <button className="btn btn--tray" onClick={onBuild}>One-pager</button>
+      <button className="btn" onClick={onDeck}>Cred deck <IconArrow /></button>
       <button className="iconbtn iconbtn--round iconbtn--tray" onClick={onClear} aria-label="Clear compare"><IconClose /></button>
     </motion.div>
   );
